@@ -41,9 +41,15 @@ WORKDIR /app
 COPY --from=builder /app/zapiki-api .
 COPY --from=builder /app/zapiki-worker .
 
+# Copy start script
+COPY --from=builder /app/start.sh .
+
 # Copy scripts (for migrations if needed)
 COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/deployments/docker/schema.sql ./deployments/docker/
+
+# Make start script executable
+RUN chmod +x /app/start.sh
 
 # Change ownership
 RUN chown -R zapiki:zapiki /app
@@ -54,5 +60,5 @@ USER zapiki
 # Expose port
 EXPOSE 8080
 
-# Default to API (can be overridden)
-CMD ["./zapiki-api"]
+# Use start script that auto-detects which service to run
+CMD ["./start.sh"]

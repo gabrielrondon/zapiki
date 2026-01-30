@@ -20,7 +20,12 @@ go.work
 
 # Environment files
 .env
-.env.local
+.env.*
+!.env.example
+!.env.production.template
+
+# Railway
+.railway
 
 # IDE
 .vscode/

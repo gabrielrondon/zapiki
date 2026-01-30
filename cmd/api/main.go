@@ -11,6 +11,7 @@ import (
 	"github.com/gabrielrondon/zapiki/internal/config"
 	"github.com/gabrielrondon/zapiki/internal/prover"
 	"github.com/gabrielrondon/zapiki/internal/prover/commitment"
+	"github.com/gabrielrondon/zapiki/internal/prover/snark/gnark"
 	"github.com/gabrielrondon/zapiki/internal/service"
 	"github.com/gabrielrondon/zapiki/internal/storage/postgres"
 	"github.com/gabrielrondon/zapiki/internal/storage/redis"
@@ -47,6 +48,7 @@ func main() {
 	proofRepo := postgres.NewProofRepository(pgStore)
 	apiKeyRepo := postgres.NewAPIKeyRepository(pgStore)
 	jobRepo := postgres.NewJobRepository(pgStore)
+	circuitRepo := postgres.NewCircuitRepository(pgStore)
 
 	// Initialize proof system factory
 	factory := prover.NewFactory()
@@ -63,7 +65,15 @@ func main() {
 		log.Println("Registered commitment proof system")
 	}
 
-	// TODO: Register other proof systems (Groth16, PLONK, STARK) when enabled
+	if cfg.Proof.EnableGroth16 {
+		groth16Prover := gnark.NewGroth16Prover()
+		if err := factory.Register(groth16Prover); err != nil {
+			log.Fatalf("Failed to register Groth16 prover: %v", err)
+		}
+		log.Println("Registered Groth16 proof system")
+	}
+
+	// TODO: Register other proof systems (PLONK, STARK) when enabled
 
 	// Initialize queue client (optional for API server)
 	// The API can enqueue jobs, but the worker processes them
@@ -73,12 +83,14 @@ func main() {
 	// Initialize services
 	proofService := service.NewProofService(factory, proofRepo, jobRepo, nil)
 	verifyService := service.NewVerifyService(factory)
+	circuitService := service.NewCircuitService(factory, circuitRepo)
 
 	// Initialize handlers
 	proofHandler := handlers.NewProofHandler(proofService)
 	verifyHandler := handlers.NewVerifyHandler(verifyService)
 	systemHandler := handlers.NewSystemHandler(factory, pgStore, redisStore)
 	jobHandler := handlers.NewJobHandler(jobRepo)
+	circuitHandler := handlers.NewCircuitHandler(circuitService)
 
 	// Initialize middleware
 	authMiddleware := middleware.NewAuth(apiKeyRepo)
@@ -91,6 +103,7 @@ func main() {
 		VerifyHandler:  verifyHandler,
 		SystemHandler:  systemHandler,
 		JobHandler:     jobHandler,
+		CircuitHandler: circuitHandler,
 		AuthMiddleware: authMiddleware,
 		RateLimiter:    rateLimitMiddleware,
 	})

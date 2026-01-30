@@ -15,6 +15,7 @@ type RouterConfig struct {
 	VerifyHandler  *handlers.VerifyHandler
 	SystemHandler  *handlers.SystemHandler
 	JobHandler     *handlers.JobHandler
+	CircuitHandler *handlers.CircuitHandler
 	AuthMiddleware *middleware.Auth
 	RateLimiter    *middleware.RateLimit
 }
@@ -58,6 +59,14 @@ func NewRouter(cfg *RouterConfig) *chi.Mux {
 		r.Route("/jobs", func(r chi.Router) {
 			r.Get("/", cfg.JobHandler.List)
 			r.Get("/{id}", cfg.JobHandler.Get)
+		})
+
+		// Circuit endpoints
+		r.Route("/circuits", func(r chi.Router) {
+			r.Post("/", cfg.CircuitHandler.Create)
+			r.Get("/", cfg.CircuitHandler.List)
+			r.Get("/{id}", cfg.CircuitHandler.Get)
+			r.Delete("/{id}", cfg.CircuitHandler.Delete)
 		})
 	})
 

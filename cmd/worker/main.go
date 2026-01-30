@@ -9,6 +9,7 @@ import (
 	"github.com/gabrielrondon/zapiki/internal/config"
 	"github.com/gabrielrondon/zapiki/internal/prover"
 	"github.com/gabrielrondon/zapiki/internal/prover/commitment"
+	"github.com/gabrielrondon/zapiki/internal/prover/snark/gnark"
 	"github.com/gabrielrondon/zapiki/internal/queue"
 	"github.com/gabrielrondon/zapiki/internal/storage/postgres"
 	"github.com/gabrielrondon/zapiki/internal/worker"
@@ -53,7 +54,15 @@ func main() {
 		log.Println("Registered commitment proof system")
 	}
 
-	// TODO: Register other proof systems (Groth16, PLONK, STARK) when enabled
+	if cfg.Proof.EnableGroth16 {
+		groth16Prover := gnark.NewGroth16Prover()
+		if err := factory.Register(groth16Prover); err != nil {
+			log.Fatalf("Failed to register Groth16 prover: %v", err)
+		}
+		log.Println("Registered Groth16 proof system")
+	}
+
+	// TODO: Register other proof systems (PLONK, STARK) when enabled
 
 	// Initialize worker processor
 	processor := worker.NewProcessor(factory, proofRepo, jobRepo)

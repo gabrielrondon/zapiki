@@ -49,6 +49,7 @@ func main() {
 	apiKeyRepo := postgres.NewAPIKeyRepository(pgStore)
 	jobRepo := postgres.NewJobRepository(pgStore)
 	circuitRepo := postgres.NewCircuitRepository(pgStore)
+	templateRepo := postgres.NewTemplateRepository(pgStore)
 
 	// Initialize proof system factory
 	factory := prover.NewFactory()
@@ -84,6 +85,7 @@ func main() {
 	proofService := service.NewProofService(factory, proofRepo, jobRepo, nil)
 	verifyService := service.NewVerifyService(factory)
 	circuitService := service.NewCircuitService(factory, circuitRepo)
+	templateService := service.NewTemplateService(templateRepo, circuitRepo, proofService)
 
 	// Initialize handlers
 	proofHandler := handlers.NewProofHandler(proofService)
@@ -91,6 +93,7 @@ func main() {
 	systemHandler := handlers.NewSystemHandler(factory, pgStore, redisStore)
 	jobHandler := handlers.NewJobHandler(jobRepo)
 	circuitHandler := handlers.NewCircuitHandler(circuitService)
+	templateHandler := handlers.NewTemplateHandler(templateService)
 
 	// Initialize middleware
 	authMiddleware := middleware.NewAuth(apiKeyRepo)
@@ -99,13 +102,14 @@ func main() {
 
 	// Setup router
 	router := routes.NewRouter(&routes.RouterConfig{
-		ProofHandler:   proofHandler,
-		VerifyHandler:  verifyHandler,
-		SystemHandler:  systemHandler,
-		JobHandler:     jobHandler,
-		CircuitHandler: circuitHandler,
-		AuthMiddleware: authMiddleware,
-		RateLimiter:    rateLimitMiddleware,
+		ProofHandler:    proofHandler,
+		VerifyHandler:   verifyHandler,
+		SystemHandler:   systemHandler,
+		JobHandler:      jobHandler,
+		CircuitHandler:  circuitHandler,
+		TemplateHandler: templateHandler,
+		AuthMiddleware:  authMiddleware,
+		RateLimiter:     rateLimitMiddleware,
 	})
 
 	// Create and start server

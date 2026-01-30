@@ -11,13 +11,14 @@ import (
 
 // RouterConfig holds configuration for setting up routes
 type RouterConfig struct {
-	ProofHandler   *handlers.ProofHandler
-	VerifyHandler  *handlers.VerifyHandler
-	SystemHandler  *handlers.SystemHandler
-	JobHandler     *handlers.JobHandler
-	CircuitHandler *handlers.CircuitHandler
-	AuthMiddleware *middleware.Auth
-	RateLimiter    *middleware.RateLimit
+	ProofHandler    *handlers.ProofHandler
+	VerifyHandler   *handlers.VerifyHandler
+	SystemHandler   *handlers.SystemHandler
+	JobHandler      *handlers.JobHandler
+	CircuitHandler  *handlers.CircuitHandler
+	TemplateHandler *handlers.TemplateHandler
+	AuthMiddleware  *middleware.Auth
+	RateLimiter     *middleware.RateLimit
 }
 
 // NewRouter creates a new Chi router with all routes configured
@@ -67,6 +68,14 @@ func NewRouter(cfg *RouterConfig) *chi.Mux {
 			r.Get("/", cfg.CircuitHandler.List)
 			r.Get("/{id}", cfg.CircuitHandler.Get)
 			r.Delete("/{id}", cfg.CircuitHandler.Delete)
+		})
+
+		// Template endpoints
+		r.Route("/templates", func(r chi.Router) {
+			r.Get("/", cfg.TemplateHandler.List)
+			r.Get("/categories", cfg.TemplateHandler.GetCategories)
+			r.Get("/{id}", cfg.TemplateHandler.Get)
+			r.Post("/{id}/generate", cfg.TemplateHandler.Generate)
 		})
 	})
 

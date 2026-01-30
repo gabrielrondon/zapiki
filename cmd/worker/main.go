@@ -10,6 +10,7 @@ import (
 	"github.com/gabrielrondon/zapiki/internal/prover"
 	"github.com/gabrielrondon/zapiki/internal/prover/commitment"
 	"github.com/gabrielrondon/zapiki/internal/prover/snark/gnark"
+	"github.com/gabrielrondon/zapiki/internal/prover/stark"
 	"github.com/gabrielrondon/zapiki/internal/queue"
 	"github.com/gabrielrondon/zapiki/internal/storage/postgres"
 	"github.com/gabrielrondon/zapiki/internal/worker"
@@ -70,7 +71,13 @@ func main() {
 		log.Println("Registered PLONK proof system")
 	}
 
-	// TODO: Register STARK when enabled
+	if cfg.Proof.EnableSTARK {
+		starkProver := stark.NewSTARKProver()
+		if err := factory.Register(starkProver); err != nil {
+			log.Fatalf("Failed to register STARK prover: %v", err)
+		}
+		log.Println("Registered STARK proof system")
+	}
 
 	// Initialize worker processor
 	processor := worker.NewProcessor(factory, proofRepo, jobRepo)

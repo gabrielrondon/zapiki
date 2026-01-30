@@ -5,8 +5,10 @@ import (
 
 	"github.com/gabrielrondon/zapiki/internal/api/handlers"
 	"github.com/gabrielrondon/zapiki/internal/api/middleware"
+	"github.com/gabrielrondon/zapiki/internal/metrics"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // RouterConfig holds configuration for setting up routes
@@ -17,8 +19,10 @@ type RouterConfig struct {
 	JobHandler      *handlers.JobHandler
 	CircuitHandler  *handlers.CircuitHandler
 	TemplateHandler *handlers.TemplateHandler
+	BatchHandler    *handlers.BatchHandler
 	AuthMiddleware  *middleware.Auth
 	RateLimiter     *middleware.RateLimit
+	Metrics         *metrics.Metrics
 }
 
 // NewRouter creates a new Chi router with all routes configured
@@ -33,8 +37,18 @@ func NewRouter(cfg *RouterConfig) *chi.Mux {
 	r.Use(middleware.CORS)
 	r.Use(chimiddleware.Timeout(60 * time.Second))
 
+	// Add metrics middleware if metrics are enabled
+	if cfg.Metrics != nil {
+		r.Use(middleware.MetricsMiddleware(cfg.Metrics))
+	}
+
 	// Health endpoint (no auth required)
 	r.Get("/health", cfg.SystemHandler.Health)
+
+	// Metrics endpoint (no auth required, for Prometheus)
+	if cfg.Metrics != nil {
+		r.Handle("/metrics", promhttp.Handler())
+	}
 
 	// API routes
 	r.Route("/api/v1", func(r chi.Router) {
@@ -51,6 +65,11 @@ func NewRouter(cfg *RouterConfig) *chi.Mux {
 			r.Get("/", cfg.ProofHandler.List)
 			r.Get("/{id}", cfg.ProofHandler.Get)
 			r.Delete("/{id}", cfg.ProofHandler.Delete)
+
+			// Batch operations
+			if cfg.BatchHandler != nil {
+				r.Post("/batch", cfg.BatchHandler.GenerateBatch)
+			}
 		})
 
 		// Verification endpoint

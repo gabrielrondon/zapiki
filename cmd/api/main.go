@@ -9,6 +9,7 @@ import (
 	"github.com/gabrielrondon/zapiki/internal/api/middleware"
 	"github.com/gabrielrondon/zapiki/internal/api/routes"
 	"github.com/gabrielrondon/zapiki/internal/config"
+	"github.com/gabrielrondon/zapiki/internal/metrics"
 	"github.com/gabrielrondon/zapiki/internal/prover"
 	"github.com/gabrielrondon/zapiki/internal/prover/commitment"
 	"github.com/gabrielrondon/zapiki/internal/prover/snark/gnark"
@@ -102,6 +103,10 @@ func main() {
 	circuitService := service.NewCircuitService(factory, circuitRepo)
 	templateService := service.NewTemplateService(templateRepo, circuitRepo, proofService)
 
+	// Initialize metrics
+	metricsCollector := metrics.New()
+	log.Println("Initialized Prometheus metrics")
+
 	// Initialize handlers
 	proofHandler := handlers.NewProofHandler(proofService)
 	verifyHandler := handlers.NewVerifyHandler(verifyService)
@@ -109,6 +114,7 @@ func main() {
 	jobHandler := handlers.NewJobHandler(jobRepo)
 	circuitHandler := handlers.NewCircuitHandler(circuitService)
 	templateHandler := handlers.NewTemplateHandler(templateService)
+	batchHandler := handlers.NewBatchHandler(proofService)
 
 	// Initialize middleware
 	authMiddleware := middleware.NewAuth(apiKeyRepo)
@@ -123,8 +129,10 @@ func main() {
 		JobHandler:      jobHandler,
 		CircuitHandler:  circuitHandler,
 		TemplateHandler: templateHandler,
+		BatchHandler:    batchHandler,
 		AuthMiddleware:  authMiddleware,
 		RateLimiter:     rateLimitMiddleware,
+		Metrics:         metricsCollector,
 	})
 
 	// Create and start server

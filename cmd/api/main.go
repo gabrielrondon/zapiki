@@ -74,7 +74,15 @@ func main() {
 		log.Println("Registered Groth16 proof system")
 	}
 
-	// TODO: Register other proof systems (PLONK, STARK) when enabled
+	if cfg.Proof.EnablePLONK {
+		plonkProver := gnark.NewPLONKProver()
+		if err := factory.Register(plonkProver); err != nil {
+			log.Fatalf("Failed to register PLONK prover: %v", err)
+		}
+		log.Println("Registered PLONK proof system")
+	}
+
+	// TODO: Register STARK when enabled
 
 	// Initialize queue client (optional for API server)
 	// The API can enqueue jobs, but the worker processes them

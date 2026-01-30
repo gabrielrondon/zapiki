@@ -1,0 +1,825 @@
+openapi: 3.0.3
+info:
+  title: Zapiki - Zero-Knowledge Proof as a Service API
+  description: |
+    Zapiki is a universal Zero-Knowledge Proof platform that abstracts cryptographic complexity
+    behind a simple REST API. Generate and verify cryptographic proofs without deep knowledge
+    of cryptography.
+
+    **Core Concept:** "Stripe for Zero-Knowledge Proofs"
+
+    ## Features
+    - Multiple proof systems (Commitment, Groth16, PLONK)
+    - Pre-built templates for common use cases
+    - Synchronous & asynchronous proof generation
+    - Simple REST API with API key authentication
+
+    ## Proof Systems
+
+    ### Commitment (Fast - ~50ms)
+    Simple hash-based commitments with digital signatures. Perfect for timestamping and
+    simple proofs of knowledge.
+
+    ### Groth16 (zk-SNARK - ~30s)
+    Zero-knowledge Succinct Non-interactive ARgument of Knowledge with trusted setup.
+    Small proof size, fast verification.
+
+    ### PLONK (zk-SNARK - ~35s)
+    Universal setup zk-SNARK. No per-circuit trusted setup required. More flexible than Groth16.
+
+    ## Authentication
+    All API requests (except /health) require an API key in the `X-API-Key` header.
+
+    ## Rate Limiting
+    - Free tier: 100 requests/minute
+    - Pro tier: 10,000 requests/minute
+
+  version: 1.0.0
+  contact:
+    name: Zapiki API Support
+    url: https://github.com/gabrielrondon/zapiki
+  license:
+    name: MIT
+
+servers:
+  - url: https://zapiki-production.up.railway.app
+    description: Production server
+  - url: http://localhost:8080
+    description: Local development server
+
+security:
+  - ApiKeyAuth: []
+
+tags:
+  - name: Health
+    description: System health and status
+  - name: Proof Systems
+    description: Information about available proof systems
+  - name: Proofs
+    description: Generate and manage cryptographic proofs
+  - name: Templates
+    description: Pre-built circuits for common use cases
+  - name: Verification
+    description: Verify proofs
+  - name: Circuits
+    description: Custom circuit management
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Check if the API and all dependent services are healthy
+      security: []
+      responses:
+        '200':
+          description: All services are healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy]
+                  services:
+                    type: object
+                    properties:
+                      api:
+                        type: string
+                        enum: [ok]
+                      postgres:
+                        type: string
+                        enum: [ok]
+                      redis:
+                        type: string
+                        enum: [ok]
+              example:
+                status: healthy
+                services:
+                  api: ok
+                  postgres: ok
+                  redis: ok
+        '503':
+          description: One or more services are unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/systems:
+    get:
+      tags:
+        - Proof Systems
+      summary: List available proof systems
+      description: Get information about all available proof systems and their capabilities
+      responses:
+        '200':
+          description: List of proof systems
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  systems:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProofSystem'
+              example:
+                systems:
+                  - name: commitment
+                    capabilities:
+                      supports_setup: false
+                      requires_trusted_setup: false
+                      supports_custom_circuits: false
+                      async_only: false
+                      typical_generation_time: 50
+                      max_proof_size: 512
+                      features:
+                        - fast-generation
+                        - simple-commitment
+                        - digital-signature
+                  - name: groth16
+                    capabilities:
+                      supports_setup: true
+                      requires_trusted_setup: true
+                      supports_custom_circuits: true
+                      async_only: true
+                      typical_generation_time: 30000
+                      max_proof_size: 1024
+                      features:
+                        - zero-knowledge
+                        - succinct-proofs
+                        - fast-verification
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/proofs:
+    post:
+      tags:
+        - Proofs
+      summary: Generate a proof
+      description: |
+        Generate a cryptographic proof for given data.
+        - Commitment proofs return immediately (synchronous)
+        - SNARK proofs (Groth16, PLONK) return a job_id (asynchronous)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateProofRequest'
+            examples:
+              commitment:
+                summary: Simple commitment proof
+                value:
+                  proof_system: commitment
+                  data:
+                    type: string
+                    value: "My secret message"
+              groth16_template:
+                summary: Age verification using template
+                value:
+                  proof_system: groth16
+                  data:
+                    type: json
+                    value:
+                      age: 25
+                      threshold: 18
+                  options:
+                    template_id: "550e8400-e29b-41d4-a716-446655440000"
+      responses:
+        '200':
+          description: Proof generated successfully (sync) or job created (async)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProofResponse'
+              examples:
+                sync_commitment:
+                  summary: Synchronous commitment proof
+                  value:
+                    proof_id: "7fb193c9-1e97-4f09-99f6-2bc96d73d7f7"
+                    status: completed
+                    proof:
+                      commitment: "ee4df64c3452de90a63b9dc3101bb9e57980fe808417574e97b36921ed5dcb1b"
+                      nonce: "b45b8b4d9f03bc5da49153686ff41eb0de618a39557c6c708cce9af01b72c933"
+                      signature: "896b37c93f3f644e55eba9afe960cdab..."
+                      timestamp: "2026-01-30T15:43:11.460029239Z"
+                      public_key: "37ca7fd1732ba38e7b64edb51abdf61864d7fd7c9ad9f472803251ec7dd110cf"
+                    verification_key:
+                      public_key: "37ca7fd1732ba38e7b64edb51abdf61864d7fd7c9ad9f472803251ec7dd110cf"
+                async_snark:
+                  summary: Asynchronous SNARK proof (job created)
+                  value:
+                    proof_id: "8ab194d0-2e98-5f10-aa07-3cd07d84e8g8"
+                    status: pending
+                    job_id: "9bc195e1-3f09-6g21-bb18-4de18e95f9h9"
+                    message: "Proof generation in progress. Poll /api/v1/proofs/{proof_id} for status"
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    get:
+      tags:
+        - Proofs
+      summary: List proofs
+      description: List all proofs for the authenticated user with pagination
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum number of proofs to return
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          description: Number of proofs to skip
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+        - name: status
+          in: query
+          description: Filter by proof status
+          schema:
+            type: string
+            enum: [pending, completed, failed]
+      responses:
+        '200':
+          description: List of proofs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  proofs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProofMetadata'
+                  pagination:
+                    type: object
+                    properties:
+                      limit:
+                        type: integer
+                      offset:
+                        type: integer
+                      total:
+                        type: integer
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/proofs/{id}:
+    get:
+      tags:
+        - Proofs
+      summary: Get proof by ID
+      description: Retrieve a specific proof by its ID. Use this to check status of async proofs.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Proof ID (UUID)
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Proof details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProofResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: Proof not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Proofs
+      summary: Delete proof
+      description: Delete a proof by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Proof ID (UUID)
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Proof deleted successfully
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: Proof not found
+
+  /api/v1/templates:
+    get:
+      tags:
+        - Templates
+      summary: List available templates
+      description: Get all pre-built circuit templates for common use cases
+      parameters:
+        - name: category
+          in: query
+          description: Filter by category
+          schema:
+            type: string
+            enum: [Identity, Financial, Math, Custom]
+        - name: proof_system
+          in: query
+          description: Filter by proof system
+          schema:
+            type: string
+            enum: [commitment, groth16, plonk]
+      responses:
+        '200':
+          description: List of templates
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  templates:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Template'
+              example:
+                templates:
+                  - id: "cfabb910-498d-44fc-94ee-b6e162d6b1cf"
+                    name: "Age Verification (18+)"
+                    description: "Prove you are 18 or older without revealing your exact age"
+                    category: "Identity"
+                    proof_system: "groth16"
+                    input_schema:
+                      type: object
+                      required: [age, threshold, over_threshold]
+                      properties:
+                        age:
+                          type: number
+                          description: "Your actual age (kept secret)"
+                        threshold:
+                          type: number
+                          description: "Minimum age requirement"
+                        over_threshold:
+                          type: number
+                          enum: [1]
+                          description: "Must be 1"
+                    example_inputs:
+                      age: 25
+                      threshold: 18
+                      over_threshold: 1
+                    is_active: true
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/templates/{id}/generate:
+    post:
+      tags:
+        - Templates
+      summary: Generate proof from template
+      description: |
+        Generate a proof using a pre-built template. This is the easiest way to generate
+        complex ZK proofs without understanding circuit design.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Template ID (UUID)
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - inputs
+              properties:
+                inputs:
+                  type: object
+                  description: Input values matching the template's input_schema
+                  additionalProperties: true
+            examples:
+              age_verification:
+                summary: Age verification (18+)
+                value:
+                  inputs:
+                    age: 25
+                    threshold: 18
+                    over_threshold: 1
+              salary_range:
+                summary: Salary range verification
+                value:
+                  inputs:
+                    salary: 75000
+                    min_salary: 50000
+                    max_salary: 150000
+                    in_range: 1
+      responses:
+        '200':
+          description: Proof generated (or job created for async)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProofResponse'
+        '400':
+          description: Invalid inputs for template
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: Template not found
+
+  /api/v1/verify:
+    post:
+      tags:
+        - Verification
+      summary: Verify a proof
+      description: Verify the validity of a cryptographic proof
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - proof_system
+                - proof
+                - verification_key
+              properties:
+                proof_system:
+                  type: string
+                  enum: [commitment, groth16, plonk]
+                proof:
+                  type: object
+                  description: The proof object returned from proof generation
+                verification_key:
+                  type: object
+                  description: The verification key returned from proof generation
+                public_inputs:
+                  type: array
+                  items:
+                    type: string
+                  description: Public inputs for SNARK proofs (optional for commitment)
+            example:
+              proof_system: commitment
+              proof:
+                commitment: "ee4df64c3452de90a63b9dc3101bb9e57980fe808417574e97b36921ed5dcb1b"
+                nonce: "b45b8b4d9f03bc5da49153686ff41eb0de618a39557c6c708cce9af01b72c933"
+                signature: "896b37c93f3f644e55eba9afe960cdab..."
+                timestamp: "2026-01-30T15:43:11.460029239Z"
+                public_key: "37ca7fd1732ba38e7b64edb51abdf61864d7fd7c9ad9f472803251ec7dd110cf"
+              verification_key:
+                public_key: "37ca7fd1732ba38e7b64edb51abdf61864d7fd7c9ad9f472803251ec7dd110cf"
+      responses:
+        '200':
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - valid
+                properties:
+                  valid:
+                    type: boolean
+                  verification_time_ms:
+                    type: integer
+                    description: Time taken to verify in milliseconds
+              examples:
+                valid:
+                  summary: Valid proof
+                  value:
+                    valid: true
+                    verification_time_ms: 5
+                invalid:
+                  summary: Invalid proof
+                  value:
+                    valid: false
+                    verification_time_ms: 3
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/circuits:
+    get:
+      tags:
+        - Circuits
+      summary: List circuits
+      description: List all circuits available to the user (public + user's private circuits)
+      responses:
+        '200':
+          description: List of circuits
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  circuits:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Circuit'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    post:
+      tags:
+        - Circuits
+      summary: Create custom circuit
+      description: |
+        Upload a custom circuit definition (advanced users only).
+        Requires understanding of circuit design.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - proof_system
+                - circuit_definition
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                proof_system:
+                  type: string
+                  enum: [groth16, plonk]
+                circuit_definition:
+                  type: object
+                  description: Circuit definition in JSON format
+                is_public:
+                  type: boolean
+                  default: false
+      responses:
+        '201':
+          description: Circuit created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Circuit'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: |
+        API key for authentication. Get your API key from the Zapiki dashboard.
+
+        Example: `X-API-Key: test_zapiki_key_1230ab3c044056686e2552fb5a2648cd`
+
+  schemas:
+    ProofSystem:
+      type: object
+      properties:
+        name:
+          type: string
+          enum: [commitment, groth16, plonk]
+        capabilities:
+          type: object
+          properties:
+            supports_setup:
+              type: boolean
+            requires_trusted_setup:
+              type: boolean
+            supports_custom_circuits:
+              type: boolean
+            async_only:
+              type: boolean
+            typical_generation_time:
+              type: integer
+              description: Typical generation time in milliseconds
+            max_proof_size:
+              type: integer
+              description: Maximum proof size in bytes
+            features:
+              type: array
+              items:
+                type: string
+
+    GenerateProofRequest:
+      type: object
+      required:
+        - proof_system
+        - data
+      properties:
+        proof_system:
+          type: string
+          enum: [commitment, groth16, plonk]
+          description: Which proof system to use
+        data:
+          type: object
+          required:
+            - type
+            - value
+          properties:
+            type:
+              type: string
+              enum: [string, json, bytes]
+              description: Type of input data
+            value:
+              oneOf:
+                - type: string
+                - type: object
+                - type: array
+              description: The actual data to prove (format depends on type)
+        public_inputs:
+          type: array
+          items:
+            type: string
+          description: Public inputs for SNARK proofs (optional)
+        options:
+          type: object
+          properties:
+            template_id:
+              type: string
+              format: uuid
+              description: Use a pre-built template
+            circuit_id:
+              type: string
+              format: uuid
+              description: Use a specific circuit
+            async:
+              type: boolean
+              description: Force async processing (default auto-detected)
+
+    ProofResponse:
+      type: object
+      required:
+        - proof_id
+        - status
+      properties:
+        proof_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, completed, failed]
+        proof:
+          type: object
+          description: The generated proof (only present when status=completed)
+        verification_key:
+          type: object
+          description: Key needed to verify the proof
+        generation_time_ms:
+          type: integer
+          description: Time taken to generate proof in milliseconds
+        job_id:
+          type: string
+          format: uuid
+          description: Job ID for async proofs (when status=pending)
+        message:
+          type: string
+          description: Human-readable message
+
+    ProofMetadata:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        proof_system:
+          type: string
+          enum: [commitment, groth16, plonk]
+        status:
+          type: string
+          enum: [pending, completed, failed]
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+        circuit_id:
+          type: string
+          format: uuid
+
+    Template:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+          enum: [Identity, Financial, Math, Custom]
+        proof_system:
+          type: string
+          enum: [commitment, groth16, plonk]
+        circuit_id:
+          type: string
+          format: uuid
+        input_schema:
+          type: object
+          description: JSON Schema describing required inputs
+        example_inputs:
+          type: object
+          description: Example input values
+        documentation:
+          type: string
+          description: Markdown documentation for the template
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    Circuit:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        proof_system:
+          type: string
+          enum: [groth16, plonk]
+        is_public:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        user_id:
+          type: string
+          format: uuid
+
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Error message
+        code:
+          type: integer
+          description: HTTP status code
+        details:
+          type: object
+          description: Additional error details
+
+  responses:
+    UnauthorizedError:
+      description: Missing or invalid API key
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Unauthorized
+            code: 401
+
+    BadRequestError:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Invalid request body
+            code: 400
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Internal server error
+            code: 500

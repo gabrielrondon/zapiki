@@ -3,6 +3,9 @@
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- Enable pgcrypto for gen_random_bytes
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
 -- Users table
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

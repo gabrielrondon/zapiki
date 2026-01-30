@@ -9,7 +9,7 @@ info:
     **Core Concept:** "Stripe for Zero-Knowledge Proofs"
 
     ## Features
-    - Multiple proof systems (Commitment, Groth16, PLONK)
+    - Multiple proof systems (Commitment, Groth16, PLONK, STARK)
     - Pre-built templates for common use cases
     - Synchronous & asynchronous proof generation
     - Simple REST API with API key authentication
@@ -27,6 +27,10 @@ info:
     ### PLONK (zk-SNARK - ~35s)
     Universal setup zk-SNARK. No per-circuit trusted setup required. More flexible than Groth16.
 
+    ### STARK (Transparent - ~40s)
+    Scalable Transparent ARgument of Knowledge. No trusted setup required, quantum-resistant,
+    hash-based proofs. Larger proof size but completely transparent and verifiable by anyone.
+
     ## Authentication
     All API requests (except /health) require an API key in the `X-API-Key` header.
 
@@ -34,7 +38,7 @@ info:
     - Free tier: 100 requests/minute
     - Pro tier: 10,000 requests/minute
 
-  version: 1.0.0
+  version: 1.1.0
   contact:
     name: Zapiki API Support
     url: https://github.com/gabrielrondon/zapiki
@@ -152,6 +156,32 @@ paths:
                         - zero-knowledge
                         - succinct-proofs
                         - fast-verification
+                  - name: plonk
+                    capabilities:
+                      supports_setup: true
+                      requires_trusted_setup: false
+                      supports_custom_circuits: true
+                      async_only: true
+                      typical_generation_time: 35000
+                      max_proof_size: 2048
+                      features:
+                        - zero-knowledge
+                        - universal-setup
+                        - no-per-circuit-setup
+                        - flexible
+                  - name: stark
+                    capabilities:
+                      supports_setup: false
+                      requires_trusted_setup: false
+                      supports_custom_circuits: true
+                      async_only: true
+                      typical_generation_time: 40000
+                      max_proof_size: 102400
+                      features:
+                        - transparent
+                        - no-trusted-setup
+                        - quantum-resistant
+                        - hash-based
         '401':
           $ref: '#/components/responses/UnauthorizedError'
 
@@ -189,6 +219,16 @@ paths:
                       threshold: 18
                   options:
                     template_id: "550e8400-e29b-41d4-a716-446655440000"
+              stark_proof:
+                summary: STARK transparent proof
+                value:
+                  proof_system: stark
+                  data:
+                    type: json
+                    value:
+                      a: 7
+                      b: 8
+                      c: 56
       responses:
         '200':
           description: Proof generated successfully (sync) or job created (async)
@@ -217,6 +257,13 @@ paths:
                     status: pending
                     job_id: "9bc195e1-3f09-6g21-bb18-4de18e95f9h9"
                     message: "Proof generation in progress. Poll /api/v1/proofs/{proof_id} for status"
+                async_stark:
+                  summary: Asynchronous STARK proof (transparent, no trusted setup)
+                  value:
+                    proof_id: "9cd295f2-4g20-7h32-cc29-5ef29f06g0j0"
+                    status: pending
+                    job_id: "adc396g3-5h21-8i43-dd30-6fg30g17h1k1"
+                    message: "STARK proof generation in progress (transparent, quantum-resistant)"
         '400':
           $ref: '#/components/responses/BadRequestError'
         '401':
@@ -344,7 +391,7 @@ paths:
           description: Filter by proof system
           schema:
             type: string
-            enum: [commitment, groth16, plonk]
+            enum: [commitment, groth16, plonk, stark]
       responses:
         '200':
           description: List of templates
@@ -468,7 +515,7 @@ paths:
               properties:
                 proof_system:
                   type: string
-                  enum: [commitment, groth16, plonk]
+                  enum: [commitment, groth16, plonk, stark]
                 proof:
                   type: object
                   description: The proof object returned from proof generation
@@ -602,7 +649,7 @@ components:
       properties:
         name:
           type: string
-          enum: [commitment, groth16, plonk]
+          enum: [commitment, groth16, plonk, stark]
         capabilities:
           type: object
           properties:
@@ -633,7 +680,7 @@ components:
       properties:
         proof_system:
           type: string
-          enum: [commitment, groth16, plonk]
+          enum: [commitment, groth16, plonk, stark]
           description: Which proof system to use
         data:
           type: object
@@ -708,7 +755,7 @@ components:
           format: uuid
         proof_system:
           type: string
-          enum: [commitment, groth16, plonk]
+          enum: [commitment, groth16, plonk, stark]
         status:
           type: string
           enum: [pending, completed, failed]
@@ -737,7 +784,7 @@ components:
           enum: [Identity, Financial, Math, Custom]
         proof_system:
           type: string
-          enum: [commitment, groth16, plonk]
+          enum: [commitment, groth16, plonk, stark]
         circuit_id:
           type: string
           format: uuid

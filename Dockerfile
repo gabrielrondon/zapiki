@@ -1,7 +1,7 @@
 # Multi-stage build for Zapiki
 
 # Stage 1: Build
-FROM golang:1.21-alpine AS builder
+FROM golang:alpine AS builder
 
 # Install build dependencies
 RUN apk add --no-cache git ca-certificates

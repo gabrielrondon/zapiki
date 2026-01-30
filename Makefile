@@ -10,9 +10,19 @@ build: ## Build the API server
 	@echo "Building Zapiki API server..."
 	@go build -o bin/zapiki-api cmd/api/main.go
 
+build-worker: ## Build the worker
+	@echo "Building Zapiki worker..."
+	@go build -o bin/zapiki-worker cmd/worker/main.go
+
+build-all: build build-worker ## Build all binaries
+
 run: ## Run the API server
 	@echo "Running Zapiki API server..."
 	@go run cmd/api/main.go
+
+run-worker: ## Run the worker
+	@echo "Running Zapiki worker..."
+	@go run cmd/worker/main.go
 
 test: ## Run tests
 	@echo "Running tests..."

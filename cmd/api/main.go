@@ -46,6 +46,7 @@ func main() {
 	// Initialize repositories
 	proofRepo := postgres.NewProofRepository(pgStore)
 	apiKeyRepo := postgres.NewAPIKeyRepository(pgStore)
+	jobRepo := postgres.NewJobRepository(pgStore)
 
 	// Initialize proof system factory
 	factory := prover.NewFactory()
@@ -64,14 +65,20 @@ func main() {
 
 	// TODO: Register other proof systems (Groth16, PLONK, STARK) when enabled
 
+	// Initialize queue client (optional for API server)
+	// The API can enqueue jobs, but the worker processes them
+	// For now, pass nil and handle sync proofs only in API
+	// When async is needed, the worker will process them
+
 	// Initialize services
-	proofService := service.NewProofService(factory, proofRepo)
+	proofService := service.NewProofService(factory, proofRepo, jobRepo, nil)
 	verifyService := service.NewVerifyService(factory)
 
 	// Initialize handlers
 	proofHandler := handlers.NewProofHandler(proofService)
 	verifyHandler := handlers.NewVerifyHandler(verifyService)
 	systemHandler := handlers.NewSystemHandler(factory, pgStore, redisStore)
+	jobHandler := handlers.NewJobHandler(jobRepo)
 
 	// Initialize middleware
 	authMiddleware := middleware.NewAuth(apiKeyRepo)
@@ -83,6 +90,7 @@ func main() {
 		ProofHandler:   proofHandler,
 		VerifyHandler:  verifyHandler,
 		SystemHandler:  systemHandler,
+		JobHandler:     jobHandler,
 		AuthMiddleware: authMiddleware,
 		RateLimiter:    rateLimitMiddleware,
 	})

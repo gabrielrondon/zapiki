@@ -16,13 +16,21 @@ import (
 type ProofService struct {
 	factory    *prover.Factory
 	proofRepo  *postgres.ProofRepository
+	jobRepo    *postgres.JobRepository
+	queueClient interface {
+		EnqueueProofGeneration(ctx context.Context, payload interface{}, priority int) error
+	}
 }
 
 // NewProofService creates a new proof service
-func NewProofService(factory *prover.Factory, proofRepo *postgres.ProofRepository) *ProofService {
+func NewProofService(factory *prover.Factory, proofRepo *postgres.ProofRepository, jobRepo *postgres.JobRepository, queueClient interface {
+	EnqueueProofGeneration(ctx context.Context, payload interface{}, priority int) error
+}) *ProofService {
 	return &ProofService{
-		factory:   factory,
-		proofRepo: proofRepo,
+		factory:     factory,
+		proofRepo:   proofRepo,
+		jobRepo:     jobRepo,
+		queueClient: queueClient,
 	}
 }
 
@@ -75,10 +83,49 @@ func (s *ProofService) Generate(ctx context.Context, req *GenerateProofRequest) 
 	isAsync := caps.AsyncOnly || (req.Options != nil && req.Options.Async)
 
 	if isAsync {
-		// For async processing, create the proof record and return job ID
+		// For async processing, create the proof record and enqueue job
 		proof.Status = models.ProofStatusPending
 		if err := s.proofRepo.Create(ctx, proof); err != nil {
 			return nil, fmt.Errorf("failed to create proof record: %w", err)
+		}
+
+		// Create job record
+		job := &models.Job{
+			ID:         uuid.New(),
+			UserID:     req.UserID,
+			ProofID:    proofID,
+			Status:     models.ProofStatusPending,
+			Priority:   0,
+			RetryCount: 0,
+			MaxRetries: 3,
+			CreatedAt:  time.Now(),
+		}
+
+		if err := s.jobRepo.Create(ctx, job); err != nil {
+			return nil, fmt.Errorf("failed to create job record: %w", err)
+		}
+
+		// Enqueue job if queue client is available
+		if s.queueClient != nil {
+			payload := map[string]interface{}{
+				"proof_id":     proofID,
+				"user_id":      req.UserID,
+				"proof_system": req.ProofSystem,
+				"data":         req.Data,
+				"public_inputs": req.PublicInputs,
+			}
+			if req.Options != nil {
+				if req.Options.CircuitID != nil {
+					payload["circuit_id"] = req.Options.CircuitID
+				}
+				if req.Options.TemplateID != nil {
+					payload["template_id"] = req.Options.TemplateID
+				}
+			}
+
+			if err := s.queueClient.EnqueueProofGeneration(ctx, payload, job.Priority); err != nil {
+				return nil, fmt.Errorf("failed to enqueue job: %w", err)
+			}
 		}
 
 		return &GenerateProofResponse{

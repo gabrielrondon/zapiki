@@ -14,6 +14,7 @@ type RouterConfig struct {
 	ProofHandler   *handlers.ProofHandler
 	VerifyHandler  *handlers.VerifyHandler
 	SystemHandler  *handlers.SystemHandler
+	JobHandler     *handlers.JobHandler
 	AuthMiddleware *middleware.Auth
 	RateLimiter    *middleware.RateLimit
 }
@@ -52,6 +53,12 @@ func NewRouter(cfg *RouterConfig) *chi.Mux {
 
 		// Verification endpoint
 		r.Post("/verify", cfg.VerifyHandler.Verify)
+
+		// Job endpoints
+		r.Route("/jobs", func(r chi.Router) {
+			r.Get("/", cfg.JobHandler.List)
+			r.Get("/{id}", cfg.JobHandler.Get)
+		})
 	})
 
 	return r

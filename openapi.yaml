@@ -12,6 +12,8 @@ info:
     - Multiple proof systems (Commitment, Groth16, PLONK, STARK)
     - Pre-built templates for common use cases
     - Synchronous & asynchronous proof generation
+    - Batch proof generation (up to 100 proofs per request)
+    - Prometheus metrics for monitoring and observability
     - Simple REST API with API key authentication
 
     ## Proof Systems
@@ -38,7 +40,7 @@ info:
     - Free tier: 100 requests/minute
     - Pro tier: 10,000 requests/minute
 
-  version: 1.1.0
+  version: 1.2.0
   contact:
     name: Zapiki API Support
     url: https://github.com/gabrielrondon/zapiki
@@ -111,6 +113,46 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+
+  /metrics:
+    get:
+      tags:
+        - Monitoring
+      summary: Prometheus metrics
+      description: |
+        Exposes Prometheus-compatible metrics for monitoring and observability.
+        Use this endpoint to scrape metrics with Prometheus, Grafana, or similar tools.
+
+        Metrics include:
+        - HTTP request duration and counts
+        - Proof generation metrics (count, duration, by system)
+        - Verification metrics
+        - Queue and job metrics
+        - Database connection pool
+        - API key usage
+        - System resources (Go runtime metrics)
+      security: []
+      responses:
+        '200':
+          description: Prometheus metrics in text format
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: |
+                # HELP zapiki_http_requests_total Total HTTP requests
+                # TYPE zapiki_http_requests_total counter
+                zapiki_http_requests_total{method="POST",path="/api/v1/proofs",status="2xx"} 142
+
+                # HELP zapiki_proofs_generated_total Total proofs generated
+                # TYPE zapiki_proofs_generated_total counter
+                zapiki_proofs_generated_total{proof_system="commitment",status="completed"} 98
+                zapiki_proofs_generated_total{proof_system="groth16",status="completed"} 23
+
+                # HELP zapiki_proof_generation_duration_seconds Proof generation duration
+                # TYPE zapiki_proof_generation_duration_seconds histogram
+                zapiki_proof_generation_duration_seconds_bucket{proof_system="commitment",le="0.1"} 98
+                zapiki_proof_generation_duration_seconds_bucket{proof_system="groth16",le="30"} 23
 
   /api/v1/systems:
     get:
@@ -372,6 +414,150 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
         '404':
           description: Proof not found
+
+  /api/v1/proofs/batch:
+    post:
+      tags:
+        - Proofs
+      summary: Generate multiple proofs in batch
+      description: |
+        Generate multiple proofs in a single request. Each proof is processed independently,
+        and the response includes individual results for each proof (success or failure).
+
+        **Features:**
+        - Maximum 100 proofs per batch request
+        - Independent processing (one failure doesn't affect others)
+        - Returns individual status for each proof
+        - Supports all proof systems (commitment, groth16, plonk, stark)
+
+        **Use Cases:**
+        - Batch processing multiple commitments
+        - Generating proofs for multiple users
+        - High-throughput scenarios
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - proofs
+              properties:
+                proofs:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  description: Array of proof generation requests
+                  items:
+                    $ref: '#/components/schemas/GenerateProofRequest'
+            example:
+              proofs:
+                - proof_system: commitment
+                  data:
+                    type: string
+                    value: "Document 1 hash"
+                - proof_system: commitment
+                  data:
+                    type: string
+                    value: "Document 2 hash"
+                - proof_system: groth16
+                  data:
+                    type: json
+                    value:
+                      age: 25
+                      threshold: 18
+                  options:
+                    template_id: "550e8400-e29b-41d4-a716-446655440000"
+      responses:
+        '200':
+          description: Batch proof generation results
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - results
+                  - total
+                  - success
+                  - failed
+                properties:
+                  results:
+                    type: array
+                    description: Individual results for each proof in the batch
+                    items:
+                      type: object
+                      required:
+                        - index
+                        - success
+                      properties:
+                        index:
+                          type: integer
+                          description: Index of the proof in the original request array
+                        success:
+                          type: boolean
+                          description: Whether proof generation succeeded
+                        response:
+                          $ref: '#/components/schemas/ProofResponse'
+                          description: Proof response if successful
+                        error:
+                          type: string
+                          description: Error message if failed
+                  total:
+                    type: integer
+                    description: Total number of proofs in batch
+                  success:
+                    type: integer
+                    description: Number of successful proofs
+                  failed:
+                    type: integer
+                    description: Number of failed proofs
+              example:
+                results:
+                  - index: 0
+                    success: true
+                    response:
+                      proof_id: "a1b2c3d4-e5f6-4a5b-8c7d-9e0f1a2b3c4d"
+                      status: completed
+                      proof:
+                        commitment: "abc123..."
+                        signature: "def456..."
+                      verification_key:
+                        public_key: "ghi789..."
+                  - index: 1
+                    success: true
+                    response:
+                      proof_id: "b2c3d4e5-f6a7-5b6c-9d8e-0f1a2b3c4d5e"
+                      status: completed
+                      proof:
+                        commitment: "xyz789..."
+                        signature: "uvw012..."
+                      verification_key:
+                        public_key: "rst345..."
+                  - index: 2
+                    success: false
+                    error: "Invalid template ID"
+                total: 3
+                success: 2
+                failed: 1
+        '400':
+          description: Bad request (empty batch, exceeds max size, invalid format)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                empty_batch:
+                  summary: Empty batch
+                  value:
+                    error: "No proofs provided"
+                exceeds_max:
+                  summary: Exceeds maximum batch size
+                  value:
+                    error: "Maximum batch size is 100"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalError'
 
   /api/v1/templates:
     get:

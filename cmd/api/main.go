@@ -115,6 +115,8 @@ func main() {
 	circuitHandler := handlers.NewCircuitHandler(circuitService)
 	templateHandler := handlers.NewTemplateHandler(templateService)
 	batchHandler := handlers.NewBatchHandler(proofService)
+	amlHandler := handlers.NewAMLHandler(proofService)
+	log.Println("Initialized AML/KYC compliance handlers")
 
 	// Initialize middleware
 	authMiddleware := middleware.NewAuth(apiKeyRepo)
@@ -130,6 +132,7 @@ func main() {
 		CircuitHandler:  circuitHandler,
 		TemplateHandler: templateHandler,
 		BatchHandler:    batchHandler,
+		AMLHandler:      amlHandler,
 		AuthMiddleware:  authMiddleware,
 		RateLimiter:     rateLimitMiddleware,
 		Metrics:         metricsCollector,

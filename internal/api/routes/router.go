@@ -20,6 +20,7 @@ type RouterConfig struct {
 	CircuitHandler  *handlers.CircuitHandler
 	TemplateHandler *handlers.TemplateHandler
 	BatchHandler    *handlers.BatchHandler
+	AMLHandler      *handlers.AMLHandler
 	AuthMiddleware  *middleware.Auth
 	RateLimiter     *middleware.RateLimit
 	Metrics         *metrics.Metrics
@@ -96,6 +97,16 @@ func NewRouter(cfg *RouterConfig) *chi.Mux {
 			r.Get("/{id}", cfg.TemplateHandler.Get)
 			r.Post("/{id}/generate", cfg.TemplateHandler.Generate)
 		})
+
+		// AML/KYC compliance endpoints
+		if cfg.AMLHandler != nil {
+			r.Route("/aml", func(r chi.Router) {
+				r.Post("/age-verification", cfg.AMLHandler.AgeVerification)
+				r.Post("/sanctions-check", cfg.AMLHandler.SanctionsCheck)
+				r.Post("/residency-proof", cfg.AMLHandler.ResidencyProof)
+				r.Post("/income-verification", cfg.AMLHandler.IncomeVerification)
+			})
+		}
 	})
 
 	return r

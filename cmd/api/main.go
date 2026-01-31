@@ -14,6 +14,7 @@ import (
 	"github.com/gabrielrondon/zapiki/internal/prover/commitment"
 	"github.com/gabrielrondon/zapiki/internal/prover/snark/gnark"
 	"github.com/gabrielrondon/zapiki/internal/prover/stark"
+	"github.com/gabrielrondon/zapiki/internal/queue"
 	"github.com/gabrielrondon/zapiki/internal/service"
 	"github.com/gabrielrondon/zapiki/internal/storage/postgres"
 	"github.com/gabrielrondon/zapiki/internal/storage/redis"
@@ -92,13 +93,12 @@ func main() {
 		log.Println("Registered STARK proof system")
 	}
 
-	// Initialize queue client (optional for API server)
-	// The API can enqueue jobs, but the worker processes them
-	// For now, pass nil and handle sync proofs only in API
-	// When async is needed, the worker will process them
+	// Initialize queue client for async proof generation
+	queueClient := queue.NewClient(cfg.Redis.Addr(), cfg.Redis.Password)
+	log.Println("Initialized queue client")
 
 	// Initialize services
-	proofService := service.NewProofService(factory, proofRepo, jobRepo, nil)
+	proofService := service.NewProofService(factory, proofRepo, jobRepo, queueClient)
 	verifyService := service.NewVerifyService(factory)
 	circuitService := service.NewCircuitService(factory, circuitRepo)
 	templateService := service.NewTemplateService(templateRepo, circuitRepo, proofService)

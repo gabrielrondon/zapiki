@@ -22,10 +22,15 @@ type Client struct {
 }
 
 // NewClient creates a new queue client
-func NewClient(redisAddr string) *Client {
-	client := asynq.NewClient(asynq.RedisClientOpt{
+func NewClient(redisAddr, password string) *Client {
+	opt := asynq.RedisClientOpt{
 		Addr: redisAddr,
-	})
+	}
+	if password != "" {
+		opt.Password = password
+	}
+
+	client := asynq.NewClient(opt)
 
 	return &Client{client: client}
 }
@@ -85,9 +90,14 @@ type Server struct {
 }
 
 // NewServer creates a new queue server
-func NewServer(redisAddr string, concurrency int) *Server {
+func NewServer(redisAddr, password string, concurrency int) *Server {
+	opt := asynq.RedisClientOpt{Addr: redisAddr}
+	if password != "" {
+		opt.Password = password
+	}
+
 	server := asynq.NewServer(
-		asynq.RedisClientOpt{Addr: redisAddr},
+		opt,
 		asynq.Config{
 			Concurrency: concurrency,
 			Queues: map[string]int{

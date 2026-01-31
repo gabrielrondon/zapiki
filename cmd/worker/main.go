@@ -88,9 +88,10 @@ func main() {
 
 	// Create and start queue server
 	redisAddr := cfg.Redis.Addr()
+	redisPassword := cfg.Redis.Password
 	concurrency := 10 // Number of concurrent workers
 
-	queueServer := queue.NewServer(redisAddr, concurrency)
+	queueServer := queue.NewServer(redisAddr, redisPassword, concurrency)
 
 	log.Printf("Starting worker with %d concurrent processors", concurrency)
 	log.Printf("Connected to Redis at %s", redisAddr)

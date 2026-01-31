@@ -37,7 +37,20 @@
       "Bash(PGPASSWORD=\"lFUKjRoZMsoZovfhlbmdBiCkMDsvkjZO\" psql:*)",
       "Bash(echo:*)",
       "Bash(go run:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(API_KEY=\"zapiki_frontend_key_e49924e1831c8ea9c1be90b9b33232ad9609141ea2b180f42c8ea1dab3872933\")",
+      "Bash(__NEW_LINE_1ad6dadfd32091b0__ echo \"Testando novamente com a API key...\")",
+      "Bash(__NEW_LINE_4fc7c5990f01d27f__ curl -s -X POST https://zapiki-production.up.railway.app/api/v1/aml/age-verification -H \"Content-Type: application/json\" -H \"X-API-Key: $API_KEY\" -d '{\n    \"\"minimum_age\"\": 18,\n    \"\"current_year\"\": 2026,\n    \"\"birth_year\"\": 1990,\n    \"\"nonce\"\": 12345\n  }')",
+      "Bash(DATABASE_URL=\"postgresql://postgres:lFUKjRoZMsoZovfhlbmdBiCkMDsvkjZO@hopper.proxy.rlwy.net:56899/railway?sslmode=require\" go run:*)",
+      "Bash(DATABASE_URL=\"postgresql://postgres:lFUKjRoZMsoZovfhlbmdBiCkMDsvkjZO@hopper.proxy.rlwy.net:56899/railway?sslmode=require\" timeout 10 go run:*)",
+      "Bash(API_KEY=\"zapiki_test_key_e49924e1831c8ea9c1be90b9b33232ad9609141ea2b180f42c8ea1dab3872933\")",
+      "Bash(__NEW_LINE_550dd67aafcac0e3__ echo \"=== Teste 1: Health Check ===\")",
+      "Bash(__NEW_LINE_9579749d621b3d63__ echo \"\")",
+      "Bash(PROOF_ID=\"8116e28f-ac47-4bcb-8706-0717f52a86d9\")",
+      "Bash(__NEW_LINE_5b0b90a7db7f0c28__ echo \"=== Aguardando mais 10 segundos ===\")",
+      "Bash(__NEW_LINE_5b0b90a7db7f0c28__ echo \"\")",
+      "Bash(__NEW_LINE_840b166dcb0b4d87__ curl -s https://zapiki-production.up.railway.app/api/v1/proofs/$PROOF_ID -H \"X-API-Key: $API_KEY\")",
+      "Bash(redis-cli:*)"
     ]
   }
 }

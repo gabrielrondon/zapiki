@@ -14,7 +14,29 @@
       "Bash(git commit:*)",
       "Bash(git branch:*)",
       "Bash(gh repo create:*)",
-      "Bash(git push)"
+      "Bash(git push)",
+      "Bash(git push:*)",
+      "Bash(railway link:*)",
+      "Bash(railway login:*)",
+      "Bash(railway whoami:*)",
+      "Bash(railway status:*)",
+      "Bash(railway service:*)",
+      "Bash(railway variables:*)",
+      "Bash(railway logs:*)",
+      "Bash(railway up:*)",
+      "Bash(git rm:*)",
+      "Bash(railway run:*)",
+      "Bash(psql \"postgresql://postgres:lFUKjRoZMsoZovfhlbmdBiCkMDsvkjZO@hopper.proxy.rlwy.net:28263/railway\" <<'EOF'\n-- Enable pgcrypto extension\nCREATE EXTENSION IF NOT EXISTS \"pgcrypto\";\n\n-- Create test API key\nINSERT INTO api_keys \\(user_id, key, name, rate_limit\\)\nSELECT id, \n       'test_zapiki_key_' || encode\\(gen_random_bytes\\(16\\), 'hex'\\),\n       'Test API Key',\n       100\nFROM users\nWHERE email = 'test@zapiki.io';\nEOF)",
+      "Bash(psql:*)",
+      "Bash(railway domain:*)",
+      "Bash(curl:*)",
+      "Bash(python3:*)",
+      "Bash(go version:*)",
+      "Bash(git reset:*)",
+      "Bash(git restore:*)",
+      "Bash(PGPASSWORD=\"lFUKjRoZMsoZovfhlbmdBiCkMDsvkjZO\" psql:*)",
+      "Bash(echo:*)",
+      "Bash(go run:*)"
     ]
   }
 }

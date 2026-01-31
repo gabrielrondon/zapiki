@@ -208,21 +208,35 @@ Se você quiser STARK de produção, podemos integrar:
 
 ---
 
-## 📈 PRÓXIMOS PASSOS (Opcional)
+## 📈 DECISÃO: FOCO NOS 3 SISTEMAS DE PRODUÇÃO
 
-Se você quiser STARK de produção:
+**Status atual (2026-01-31)**: Decidimos **adiar** a integração de STARK de produção até validar demanda real.
 
-1. **Integrar Winterfell** (2-3 dias):
-   - Criar bindings CGO
-   - Compilar biblioteca Rust
-   - Testar integração
+### Por Quê?
 
-2. **Ou manter status atual**:
-   - Commitment/Groth16/PLONK = 100% produção
-   - STARK = demonstração/educacional
-   - Documentar claramente as limitações
+1. **3 sistemas prontos para produção** (Commitment, Groth16, PLONK) cobrem 99% dos casos de uso
+2. **STARK é complexo**: 1-2 semanas de desenvolvimento para bindings CGO ou integração externa
+3. **Melhor validar primeiro**: Resolver dores reais, ter mais use cases, acertar product-market fit
+4. **STARK atual funciona** para demonstrações e MVPs
 
-**Minha recomendação**: O sistema está excelente como está. 3 provas de produção é mais que suficiente. Se precisar de STARK real no futuro, podemos adicionar depois.
+### Quando Revisitar?
+
+Integrar STARK de produção quando houver:
+- ✅ Demanda real de clientes/usuários para STARK
+- ✅ Caso de uso específico que requer provas transparentes (sem trusted setup)
+- ✅ Requisitos de performance que Groth16/PLONK não atendem
+- ✅ Quantum-resistance se tornar crítico
+
+### Opções Futuras (já pesquisadas)
+
+1. **Winterfell CGO** - Bindings Rust → Go (1-2 semanas, complexo)
+2. **API Externa** - Stone/Starknet prover (2-3 dias, simples)
+3. **Melhorar atual** - Implementar FRI/Reed-Solomon completo (3-5 dias)
+4. **Hybrid** - stwo-gnark-verifier (1 semana, apenas verificador)
+
+Ver Task #11 para detalhes completos da análise.
+
+**Recomendação atual**: Focar nos 3 sistemas de produção. Documentar STARK como "demonstração/educacional". Adicionar STARK real quando demanda justificar o investimento.
 
 ---
 

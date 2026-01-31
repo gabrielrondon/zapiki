@@ -41,15 +41,16 @@ WORKDIR /app
 COPY --from=builder /app/zapiki-api .
 COPY --from=builder /app/zapiki-worker .
 
-# Copy start script
+# Copy start scripts
 COPY --from=builder /app/start.sh .
+COPY --from=builder /app/start-worker.sh .
 
 # Copy scripts (for migrations if needed)
 COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/deployments/docker/schema.sql ./deployments/docker/
 
-# Make start script executable
-RUN chmod +x /app/start.sh
+# Make start scripts executable
+RUN chmod +x /app/start.sh /app/start-worker.sh
 
 # Change ownership
 RUN chown -R zapiki:zapiki /app

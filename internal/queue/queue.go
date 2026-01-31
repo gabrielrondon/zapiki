@@ -53,7 +53,7 @@ type ProofGenerationPayload struct {
 }
 
 // EnqueueProofGeneration enqueues a proof generation job
-func (c *Client) EnqueueProofGeneration(ctx context.Context, payload *ProofGenerationPayload, priority int) error {
+func (c *Client) EnqueueProofGeneration(ctx context.Context, payload interface{}, priority int) error {
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("failed to marshal payload: %w", err)

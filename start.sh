@@ -3,7 +3,7 @@
 # Railway Start Script
 # Determines which service to start based on RAILWAY_SERVICE_NAME
 
-if [ "$RAILWAY_SERVICE_NAME" = "zakipi-worker" ]; then
+if [ "$RAILWAY_SERVICE_NAME" = "zapiki-worker" ]; then
     echo "Starting Zapiki Worker..."
     exec ./zapiki-worker
 else

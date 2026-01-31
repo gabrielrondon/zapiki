@@ -281,60 +281,74 @@ func (p *Groth16Prover) Capabilities() prover.Capabilities {
 }
 
 // createWitness creates a witness from input data
+// Helper function to convert interface{} to int, handling both float64 and int
+func toInt(v interface{}) int {
+	switch val := v.(type) {
+	case float64:
+		return int(val)
+	case int:
+		return val
+	case int64:
+		return int(val)
+	default:
+		return 0
+	}
+}
+
 func (p *Groth16Prover) createWitness(circuitType string, inputData map[string]interface{}) (frontend.Circuit, error) {
 	switch circuitType {
 	case "simple":
 		return &SimpleCircuit{
-			X: inputData["x"],
-			Y: inputData["y"],
-			Z: inputData["z"],
+			X: toInt(inputData["x"]),
+			Y: toInt(inputData["y"]),
+			Z: toInt(inputData["z"]),
 		}, nil
 
 	case "age_verification":
 		return &AgeVerificationCircuit{
-			Age:     inputData["age"],
-			MinAge:  inputData["min_age"],
-			IsAdult: inputData["is_adult"],
+			Age:     toInt(inputData["age"]),
+			MinAge:  toInt(inputData["min_age"]),
+			IsAdult: toInt(inputData["is_adult"]),
 		}, nil
 
 	case "range_proof":
 		return &RangeProofCircuit{
-			Value:   inputData["value"],
-			Min:     inputData["min"],
-			Max:     inputData["max"],
-			InRange: inputData["in_range"],
+			Value:   toInt(inputData["value"]),
+			Min:     toInt(inputData["min"]),
+			Max:     toInt(inputData["max"]),
+			InRange: toInt(inputData["in_range"]),
 		}, nil
 
 	// AML/KYC Compliance circuits
 	case "aml_age_verification":
 		return &AMLAgeVerificationCircuit{
-			MinimumAge:  inputData["minimum_age"],
-			CurrentYear: inputData["current_year"],
-			BirthYear:   inputData["birth_year"],
-			Nonce:       inputData["nonce"],
+			MinimumAge:  toInt(inputData["minimum_age"]),
+			CurrentYear: toInt(inputData["current_year"]),
+			BirthYear:   toInt(inputData["birth_year"]),
+			Nonce:       toInt(inputData["nonce"]),
 		}, nil
 
 	case "aml_sanctions_check":
 		return &AMLSanctionsCheckCircuit{
-			SanctionsListRoot: inputData["sanctions_list_root"],
-			CurrentTimestamp:  inputData["current_timestamp"],
-			UserIdentifier:    inputData["user_identifier"],
+			SanctionsListRoot: toInt(inputData["sanctions_list_root"]),
+			CurrentTimestamp:  toInt(inputData["current_timestamp"]),
+			UserIdentifier:    toInt(inputData["user_identifier"]),
 		}, nil
 
 	case "aml_residency_proof":
 		return &AMLResidencyProofCircuit{
-			AllowedCountryCode: inputData["allowed_country_code"],
-			CurrentTimestamp:   inputData["current_timestamp"],
-			UserCountryCode:    inputData["user_country_code"],
-			AddressHash:        inputData["address_hash"],
+			AllowedCountryCode: toInt(inputData["allowed_country_code"]),
+			CurrentTimestamp:   toInt(inputData["current_timestamp"]),
+			UserCountryCode:    toInt(inputData["user_country_code"]),
+			AddressHash:        toInt(inputData["address_hash"]),
 		}, nil
 
 	case "aml_income_verification":
 		return &AMLIncomeVerificationCircuit{
-			MinimumIncome:    inputData["minimum_income"],
-			CurrentTimestamp: inputData["current_timestamp"],
-			ActualIncome:     inputData["actual_income"],
-			IncomeSourceHash: inputData["income_source_hash"],
+			MinimumIncome:    toInt(inputData["minimum_income"]),
+			CurrentTimestamp: toInt(inputData["current_timestamp"]),
+			ActualIncome:     toInt(inputData["actual_income"]),
+			IncomeSourceHash: toInt(inputData["income_source_hash"]),
 		}, nil
 
 	default:

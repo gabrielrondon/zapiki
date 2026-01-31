@@ -3,6 +3,7 @@ package gnark
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -196,10 +197,21 @@ func (p *Groth16Prover) Generate(ctx context.Context, req *prover.ProofRequest) 
 
 	generationTime := time.Since(startTime).Milliseconds()
 
+	// Encode binary data as base64-encoded JSON for database storage
+	proofJSON, _ := json.Marshal(map[string]string{
+		"proof": base64.StdEncoding.EncodeToString(proofBuf.Bytes()),
+	})
+	publicInputsJSON, _ := json.Marshal(map[string]string{
+		"public_inputs": base64.StdEncoding.EncodeToString(publicBuf.Bytes()),
+	})
+	vkJSON, _ := json.Marshal(map[string]string{
+		"verification_key": base64.StdEncoding.EncodeToString(vkBuf.Bytes()),
+	})
+
 	return &prover.ProofResponse{
-		Proof:            proofBuf.Bytes(),
-		PublicInputs:     publicBuf.Bytes(),
-		VerificationKey:  vkBuf.Bytes(),
+		Proof:            json.RawMessage(proofJSON),
+		PublicInputs:     json.RawMessage(publicInputsJSON),
+		VerificationKey:  json.RawMessage(vkJSON),
 		GenerationTimeMs: generationTime,
 		Metadata: map[string]interface{}{
 			"proof_system": "groth16",

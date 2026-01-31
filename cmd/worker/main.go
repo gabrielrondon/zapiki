@@ -96,6 +96,9 @@ func main() {
 	log.Printf("Starting worker with %d concurrent processors", concurrency)
 	log.Printf("Connected to Redis at %s", redisAddr)
 
+	// Channel to handle shutdown
+	done := make(chan struct{})
+
 	// Handle graceful shutdown
 	go func() {
 		quit := make(chan os.Signal, 1)
@@ -105,10 +108,21 @@ func main() {
 		log.Println("Shutting down worker...")
 		queueServer.Shutdown()
 		log.Println("Worker stopped")
+		close(done)
 	}()
 
-	// Start processing
-	if err := queueServer.Start(mux); err != nil {
-		log.Fatalf("Worker error: %v", err)
-	}
+	// Start processing in background
+	go func() {
+		log.Println("Starting asynq server...")
+		if err := queueServer.Start(mux); err != nil {
+			log.Fatalf("Worker error: %v", err)
+		}
+		log.Println("Asynq server stopped")
+	}()
+
+	log.Println("Worker is running. Press Ctrl+C to stop.")
+
+	// Block forever until shutdown signal
+	<-done
+	log.Println("Worker shutdown complete")
 }

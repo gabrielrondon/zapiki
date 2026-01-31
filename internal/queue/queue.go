@@ -37,13 +37,14 @@ func (c *Client) Close() error {
 
 // ProofGenerationPayload represents the payload for proof generation jobs
 type ProofGenerationPayload struct {
-	ProofID     uuid.UUID              `json:"proof_id"`
-	UserID      uuid.UUID              `json:"user_id"`
-	ProofSystem models.ProofSystemType `json:"proof_system"`
-	Data        *models.InputData      `json:"data"`
-	PublicInputs json.RawMessage       `json:"public_inputs,omitempty"`
-	CircuitID   *uuid.UUID             `json:"circuit_id,omitempty"`
-	TemplateID  *uuid.UUID             `json:"template_id,omitempty"`
+	ProofID      uuid.UUID              `json:"proof_id"`
+	UserID       uuid.UUID              `json:"user_id"`
+	ProofSystem  models.ProofSystemType `json:"proof_system"`
+	Data         *models.InputData      `json:"data"`
+	PublicInputs json.RawMessage        `json:"public_inputs,omitempty"`
+	CircuitID    *uuid.UUID             `json:"circuit_id,omitempty"`
+	TemplateID   *uuid.UUID             `json:"template_id,omitempty"`
+	Options      map[string]interface{} `json:"options,omitempty"`
 }
 
 // EnqueueProofGeneration enqueues a proof generation job

@@ -70,6 +70,18 @@ func (p *Processor) HandleProofGeneration(ctx context.Context, task *asynq.Task)
 	proverReq := &prover.ProofRequest{
 		Data:         payload.Data,
 		PublicInputs: payload.PublicInputs,
+		Options:      payload.Options,
+	}
+
+	// Add circuit/template info to options if available
+	if proverReq.Options == nil {
+		proverReq.Options = make(map[string]interface{})
+	}
+	if payload.CircuitID != nil {
+		proverReq.Options["circuit_id"] = payload.CircuitID
+	}
+	if payload.TemplateID != nil {
+		proverReq.Options["template_id"] = payload.TemplateID
 	}
 
 	proverResp, err := system.Generate(ctx, proverReq)

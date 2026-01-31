@@ -8,6 +8,7 @@ import (
 
 	"github.com/gabrielrondon/zapiki/internal/models"
 	"github.com/gabrielrondon/zapiki/internal/prover"
+	"github.com/gabrielrondon/zapiki/internal/queue"
 	"github.com/gabrielrondon/zapiki/internal/storage/postgres"
 	"github.com/google/uuid"
 )
@@ -107,23 +108,24 @@ func (s *ProofService) Generate(ctx context.Context, req *GenerateProofRequest) 
 
 		// Enqueue job if queue client is available
 		if s.queueClient != nil {
-			payload := map[string]interface{}{
-				"proof_id":     proofID,
-				"user_id":      req.UserID,
-				"proof_system": req.ProofSystem,
-				"data":         req.Data,
-				"public_inputs": req.PublicInputs,
+			queuePayload := &queue.ProofGenerationPayload{
+				ProofID:      proofID,
+				UserID:       req.UserID,
+				ProofSystem:  req.ProofSystem,
+				Data:         req.Data,
+				PublicInputs: req.PublicInputs,
 			}
+
 			if req.Options != nil {
-				if req.Options.CircuitID != nil {
-					payload["circuit_id"] = req.Options.CircuitID
-				}
-				if req.Options.TemplateID != nil {
-					payload["template_id"] = req.Options.TemplateID
+				queuePayload.CircuitID = req.Options.CircuitID
+				queuePayload.TemplateID = req.Options.TemplateID
+				// Pass additional options
+				queuePayload.Options = map[string]interface{}{
+					"async": req.Options.Async,
 				}
 			}
 
-			if err := s.queueClient.EnqueueProofGeneration(ctx, payload, job.Priority); err != nil {
+			if err := s.queueClient.EnqueueProofGeneration(ctx, queuePayload, job.Priority); err != nil {
 				return nil, fmt.Errorf("failed to enqueue job: %w", err)
 			}
 		}

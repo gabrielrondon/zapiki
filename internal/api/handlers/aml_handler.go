@@ -83,6 +83,9 @@ func (h *AMLHandler) AgeVerification(w http.ResponseWriter, r *http.Request) {
 			Type:  models.DataTypeJSON,
 			Value: dataValue,
 		},
+		Options: &models.ProofOptions{
+			Async: true, // AML proofs are async (Groth16 takes ~30s)
+		},
 	}
 
 	// Generate proof

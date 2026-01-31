@@ -94,19 +94,34 @@ func (p *Groth16Prover) Generate(ctx context.Context, req *prover.ProofRequest) 
 		Params      map[string]interface{} `json:"params"`
 	}
 
-	if req.Circuit != nil && req.Circuit.CircuitDefinition != nil {
+	// Check for circuit_type in Options first (new method)
+	if req.Options != nil {
+		if ct, ok := req.Options["circuit_type"].(string); ok {
+			circuitDef.CircuitType = ct
+		}
+	}
+
+	// Fallback to Circuit.CircuitDefinition (old method)
+	if circuitDef.CircuitType == "" && req.Circuit != nil && req.Circuit.CircuitDefinition != nil {
 		if err := json.Unmarshal(req.Circuit.CircuitDefinition, &circuitDef); err != nil {
 			return nil, fmt.Errorf("failed to parse circuit definition: %w", err)
 		}
-	} else {
-		// Default to simple circuit for demo
-		circuitDef.CircuitType = "simple"
 	}
 
-	// Parse input data
+	// Parse input data first (needed for auto-detection)
 	var inputData map[string]interface{}
 	if err := json.Unmarshal(req.Data.Value, &inputData); err != nil {
 		return nil, fmt.Errorf("failed to parse input data: %w", err)
+	}
+
+	// Auto-detect circuit type based on input fields if not specified
+	if circuitDef.CircuitType == "" {
+		circuitDef.CircuitType = detectCircuitType(inputData)
+	}
+
+	// Default to simple circuit if still not detected
+	if circuitDef.CircuitType == "" {
+		circuitDef.CircuitType = "simple"
 	}
 
 	// Get circuit instance and assign values
@@ -290,6 +305,38 @@ func (p *Groth16Prover) createWitness(circuitType string, inputData map[string]i
 			InRange: inputData["in_range"],
 		}, nil
 
+	// AML/KYC Compliance circuits
+	case "aml_age_verification":
+		return &AMLAgeVerificationCircuit{
+			MinimumAge:  inputData["minimum_age"],
+			CurrentYear: inputData["current_year"],
+			BirthYear:   inputData["birth_year"],
+			Nonce:       inputData["nonce"],
+		}, nil
+
+	case "aml_sanctions_check":
+		return &AMLSanctionsCheckCircuit{
+			SanctionsListRoot: inputData["sanctions_list_root"],
+			CurrentTimestamp:  inputData["current_timestamp"],
+			UserIdentifier:    inputData["user_identifier"],
+		}, nil
+
+	case "aml_residency_proof":
+		return &AMLResidencyProofCircuit{
+			AllowedCountryCode: inputData["allowed_country_code"],
+			CurrentTimestamp:   inputData["current_timestamp"],
+			UserCountryCode:    inputData["user_country_code"],
+			AddressHash:        inputData["address_hash"],
+		}, nil
+
+	case "aml_income_verification":
+		return &AMLIncomeVerificationCircuit{
+			MinimumIncome:    inputData["minimum_income"],
+			CurrentTimestamp: inputData["current_timestamp"],
+			ActualIncome:     inputData["actual_income"],
+			IncomeSourceHash: inputData["income_source_hash"],
+		}, nil
+
 	default:
 		return &SimpleCircuit{
 			X: 3,
@@ -297,4 +344,65 @@ func (p *Groth16Prover) createWitness(circuitType string, inputData map[string]i
 			Z: 15,
 		}, nil
 	}
+}
+
+// detectCircuitType automatically detects the circuit type based on input fields
+func detectCircuitType(inputData map[string]interface{}) string {
+	// AML Age Verification: has minimum_age, current_year, birth_year
+	if _, hasMinAge := inputData["minimum_age"]; hasMinAge {
+		if _, hasCurYear := inputData["current_year"]; hasCurYear {
+			if _, hasBirthYear := inputData["birth_year"]; hasBirthYear {
+				return "aml_age_verification"
+			}
+		}
+	}
+
+	// AML Sanctions Check: has sanctions_list_root, user_identifier
+	if _, hasSanctions := inputData["sanctions_list_root"]; hasSanctions {
+		if _, hasUser := inputData["user_identifier"]; hasUser {
+			return "aml_sanctions_check"
+		}
+	}
+
+	// AML Residency: has allowed_country_code, user_country_code
+	if _, hasAllowed := inputData["allowed_country_code"]; hasAllowed {
+		if _, hasUser := inputData["user_country_code"]; hasUser {
+			return "aml_residency_proof"
+		}
+	}
+
+	// AML Income: has minimum_income, actual_income
+	if _, hasMinIncome := inputData["minimum_income"]; hasMinIncome {
+		if _, hasActual := inputData["actual_income"]; hasActual {
+			return "aml_income_verification"
+		}
+	}
+
+	// Old age verification: has age, min_age, is_adult
+	if _, hasAge := inputData["age"]; hasAge {
+		if _, hasMinAge := inputData["min_age"]; hasMinAge {
+			return "age_verification"
+		}
+	}
+
+	// Range proof: has value, min, max
+	if _, hasValue := inputData["value"]; hasValue {
+		if _, hasMin := inputData["min"]; hasMin {
+			if _, hasMax := inputData["max"]; hasMax {
+				return "range_proof"
+			}
+		}
+	}
+
+	// Simple circuit: has x, y, z
+	if _, hasX := inputData["x"]; hasX {
+		if _, hasY := inputData["y"]; hasY {
+			if _, hasZ := inputData["z"]; hasZ {
+				return "simple"
+			}
+		}
+	}
+
+	// Unknown - return empty string
+	return ""
 }

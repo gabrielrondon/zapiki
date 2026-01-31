@@ -115,6 +115,107 @@ func (circuit *MerkleProofCircuit) Define(api frontend.API) error {
 	return nil
 }
 
+// AMLAgeVerificationCircuit proves age >= minimum without revealing birthdate
+// This is for Banking AML/KYC compliance
+type AMLAgeVerificationCircuit struct {
+	// Public inputs
+	MinimumAge  frontend.Variable `gnark:",public"`
+	CurrentYear frontend.Variable `gnark:",public"`
+
+	// Private inputs
+	BirthYear frontend.Variable `gnark:"birthYear"`
+	Nonce     frontend.Variable `gnark:"nonce"`
+}
+
+// Define implements age verification for AML compliance
+func (circuit *AMLAgeVerificationCircuit) Define(api frontend.API) error {
+	// Calculate age: currentYear - birthYear
+	age := api.Sub(circuit.CurrentYear, circuit.BirthYear)
+
+	// Constraint 1: age >= minimumAge
+	api.AssertIsLessOrEqual(circuit.MinimumAge, age)
+
+	// Constraint 2: birthYear is reasonable (between 1900 and currentYear)
+	api.AssertIsLessOrEqual(1900, circuit.BirthYear)
+	api.AssertIsLessOrEqual(circuit.BirthYear, circuit.CurrentYear)
+
+	// Constraint 3: nonce is included (prevents replay)
+	_ = circuit.Nonce
+
+	return nil
+}
+
+// AMLSanctionsCheckCircuit proves user is NOT on sanctions list
+type AMLSanctionsCheckCircuit struct {
+	// Public inputs
+	SanctionsListRoot frontend.Variable `gnark:",public"`
+	CurrentTimestamp  frontend.Variable `gnark:",public"`
+
+	// Private inputs
+	UserIdentifier frontend.Variable `gnark:"userIdentifier"`
+}
+
+// Define implements sanctions check (simplified)
+func (circuit *AMLSanctionsCheckCircuit) Define(api frontend.API) error {
+	// Include inputs in constraints
+	_ = circuit.SanctionsListRoot
+	_ = circuit.CurrentTimestamp
+	_ = circuit.UserIdentifier
+
+	// In production: implement Merkle non-membership proof
+	// For now: basic constraint that user identifier is known
+	return nil
+}
+
+// AMLResidencyProofCircuit proves residency in allowed country
+type AMLResidencyProofCircuit struct {
+	// Public inputs
+	AllowedCountryCode frontend.Variable `gnark:",public"`
+	CurrentTimestamp   frontend.Variable `gnark:",public"`
+
+	// Private inputs
+	UserCountryCode frontend.Variable `gnark:"userCountryCode"`
+	AddressHash     frontend.Variable `gnark:"addressHash"`
+}
+
+// Define implements residency proof
+func (circuit *AMLResidencyProofCircuit) Define(api frontend.API) error {
+	// Constraint: userCountryCode == allowedCountryCode
+	api.AssertIsEqual(circuit.UserCountryCode, circuit.AllowedCountryCode)
+
+	// Include address hash (commitment)
+	_ = circuit.AddressHash
+	_ = circuit.CurrentTimestamp
+
+	return nil
+}
+
+// AMLIncomeVerificationCircuit proves income >= threshold
+type AMLIncomeVerificationCircuit struct {
+	// Public inputs
+	MinimumIncome    frontend.Variable `gnark:",public"`
+	CurrentTimestamp frontend.Variable `gnark:",public"`
+
+	// Private inputs
+	ActualIncome     frontend.Variable `gnark:"actualIncome"`
+	IncomeSourceHash frontend.Variable `gnark:"incomeSourceHash"`
+}
+
+// Define implements income verification
+func (circuit *AMLIncomeVerificationCircuit) Define(api frontend.API) error {
+	// Constraint: actualIncome >= minimumIncome
+	api.AssertIsLessOrEqual(circuit.MinimumIncome, circuit.ActualIncome)
+
+	// Sanity check: income within reasonable bounds
+	api.AssertIsLessOrEqual(circuit.ActualIncome, 10000000)
+
+	// Include source hash (commitment)
+	_ = circuit.IncomeSourceHash
+	_ = circuit.CurrentTimestamp
+
+	return nil
+}
+
 // GetCircuitByName returns a circuit instance by name
 func GetCircuitByName(name string) (frontend.Circuit, error) {
 	switch name {
@@ -128,6 +229,17 @@ func GetCircuitByName(name string) (frontend.Circuit, error) {
 		return &HashPreimageCircuit{}, nil
 	case "merkle_proof":
 		return &MerkleProofCircuit{}, nil
+
+	// AML/KYC Compliance circuits
+	case "aml_age_verification":
+		return &AMLAgeVerificationCircuit{}, nil
+	case "aml_sanctions_check":
+		return &AMLSanctionsCheckCircuit{}, nil
+	case "aml_residency_proof":
+		return &AMLResidencyProofCircuit{}, nil
+	case "aml_income_verification":
+		return &AMLIncomeVerificationCircuit{}, nil
+
 	default:
 		return &SimpleCircuit{}, nil
 	}

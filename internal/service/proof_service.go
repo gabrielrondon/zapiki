@@ -146,6 +146,18 @@ func (s *ProofService) Generate(ctx context.Context, req *GenerateProofRequest) 
 	proverReq := &prover.ProofRequest{
 		Data:         req.Data,
 		PublicInputs: req.PublicInputs,
+		Options:      make(map[string]interface{}),
+	}
+
+	// Pass circuit/template information to prover
+	if req.Options != nil {
+		if req.Options.CircuitID != nil {
+			proverReq.Options["circuit_id"] = req.Options.CircuitID
+		}
+		if req.Options.TemplateID != nil {
+			proverReq.Options["template_id"] = req.Options.TemplateID
+		}
+		proverReq.Options["async"] = req.Options.Async
 	}
 
 	proverResp, err := system.Generate(ctx, proverReq)

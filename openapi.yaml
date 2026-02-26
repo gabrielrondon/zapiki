@@ -61,6 +61,14 @@ tags:
     description: System health and status
   - name: Proof Systems
     description: Information about available proof systems
+  - name: Plans
+    description: Commercial plans and usage limits
+  - name: Audit
+    description: Audit trail and compliance events
+  - name: Usage
+    description: Usage metering and billing visibility
+  - name: Portal
+    description: Customer pilot portal overview and dashboard
   - name: Proofs
     description: Generate and manage cryptographic proofs
   - name: Templates
@@ -73,6 +81,8 @@ tags:
     description: Prometheus metrics for observability
   - name: Circuits
     description: Custom circuit management
+  - name: Jobs
+    description: Async proof generation job tracking
 
 paths:
   /health:
@@ -158,6 +168,37 @@ paths:
                 zapiki_proof_generation_duration_seconds_bucket{proof_system="commitment",le="0.1"} 98
                 zapiki_proof_generation_duration_seconds_bucket{proof_system="groth16",le="30"} 23
 
+  /portal:
+    get:
+      tags:
+        - Portal
+      summary: Pilot portal page
+      description: Basic customer portal UI for pilot users (requires API key in page to fetch overview data).
+      security: []
+      responses:
+        '200':
+          description: HTML portal page
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /api/v1/portal/overview:
+    get:
+      tags:
+        - Portal
+      summary: Customer usage/failure/cost overview
+      description: Consolidated pilot dashboard data for authenticated users.
+      responses:
+        '200':
+          description: Portal overview data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalOverview'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
   /api/v1/systems:
     get:
       tags:
@@ -228,6 +269,92 @@ paths:
                         - no-trusted-setup
                         - quantum-resistant
                         - hash-based
+                        - experimental
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/plans:
+    get:
+      tags:
+        - Plans
+      summary: List available commercial plans
+      description: Returns Starter, Growth, and Enterprise plan limits and SLA hints.
+      responses:
+        '200':
+          description: Plan list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  plans:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        target:
+                          type: string
+                        rate_limit_per_minute:
+                          type: integer
+                        burst_percent:
+                          type: integer
+                        sla:
+                          type: string
+                        monthly_price_usd_hint:
+                          type: integer
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/audit/events:
+    get:
+      tags:
+        - Audit
+      summary: List audit events for authenticated user
+      description: Returns immutable audit events for compliance/reporting.
+      responses:
+        '200':
+          description: Audit events list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  events:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuditEvent'
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/usage/summary:
+    get:
+      tags:
+        - Usage
+      summary: Get usage summary for authenticated user
+      description: Aggregated usage metrics for billing and operations (rolling 30 days).
+      responses:
+        '200':
+          description: Usage summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  since:
+                    type: string
+                    format: date-time
+                  lookback_days:
+                    type: integer
+                  usage_summary:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UsageSummaryRow'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
 
@@ -277,7 +404,7 @@ paths:
                       c: 56
       responses:
         '200':
-          description: Proof generated successfully (sync) or job created (async)
+          description: Proof generated successfully (sync)
           content:
             application/json:
               schema:
@@ -310,6 +437,12 @@ paths:
                     status: pending
                     job_id: "adc396g3-5h21-8i43-dd30-6fg30g17h1k1"
                     message: "STARK proof generation in progress (transparent, quantum-resistant)"
+        '202':
+          description: Proof job accepted for asynchronous generation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProofResponse'
         '400':
           $ref: '#/components/responses/BadRequestError'
         '401':
@@ -412,7 +545,7 @@ paths:
             type: string
             format: uuid
       responses:
-        '204':
+        '200':
           description: Proof deleted successfully
         '401':
           $ref: '#/components/responses/UnauthorizedError'
@@ -828,12 +961,6 @@ paths:
           schema:
             type: string
             enum: [Identity, Financial, Math, Custom]
-        - name: proof_system
-          in: query
-          description: Filter by proof system
-          schema:
-            type: string
-            enum: [commitment, groth16, plonk, stark]
       responses:
         '200':
           description: List of templates
@@ -874,6 +1001,52 @@ paths:
                     is_active: true
         '401':
           $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/templates/categories:
+    get:
+      tags:
+        - Templates
+      summary: List template categories
+      description: Returns all available template categories.
+      responses:
+        '200':
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  categories:
+                    type: array
+                    items:
+                      type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/templates/{id}:
+    get:
+      tags:
+        - Templates
+      summary: Get template by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Template ID (UUID)
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Template details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Template'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: Template not found
 
   /api/v1/templates/{id}/generate:
     post:
@@ -923,6 +1096,12 @@ paths:
       responses:
         '200':
           description: Proof generated (or job created for async)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProofResponse'
+        '202':
+          description: Proof job accepted for asynchronous generation
           content:
             application/json:
               schema:
@@ -1015,7 +1194,14 @@ paths:
       tags:
         - Circuits
       summary: List circuits
-      description: List all circuits available to the user (public + user's private circuits)
+      description: List circuits for the authenticated user. Set `include_public=true` to include public circuits.
+      parameters:
+        - name: include_public
+          in: query
+          description: Include public circuits in the response
+          schema:
+            type: boolean
+            default: false
       responses:
         '200':
           description: List of circuits
@@ -1073,6 +1259,101 @@ paths:
           $ref: '#/components/responses/BadRequestError'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/circuits/{id}:
+    get:
+      tags:
+        - Circuits
+      summary: Get circuit by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Circuit ID (UUID)
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Circuit details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Circuit'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: Circuit not found
+
+    delete:
+      tags:
+        - Circuits
+      summary: Delete circuit by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Circuit ID (UUID)
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Circuit deleted successfully
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: Circuit not found
+
+  /api/v1/jobs:
+    get:
+      tags:
+        - Jobs
+      summary: List jobs
+      description: List asynchronous proof generation jobs for the authenticated user.
+      responses:
+        '200':
+          description: List of jobs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jobs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Job'
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/jobs/{id}:
+    get:
+      tags:
+        - Jobs
+      summary: Get job by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Job ID (UUID)
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Job details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: Job not found
 
 components:
   securitySchemes:
@@ -1224,6 +1505,9 @@ components:
         category:
           type: string
           enum: [Identity, Financial, Math, Custom]
+        version:
+          type: integer
+          minimum: 1
         proof_system:
           type: string
           enum: [commitment, groth16, plonk, stark]
@@ -1255,6 +1539,9 @@ components:
           type: string
         description:
           type: string
+        version:
+          type: integer
+          minimum: 1
         proof_system:
           type: string
           enum: [groth16, plonk]
@@ -1266,6 +1553,133 @@ components:
         user_id:
           type: string
           format: uuid
+
+    Job:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        proof_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, processing, completed, failed]
+        priority:
+          type: integer
+        retry_count:
+          type: integer
+        max_retries:
+          type: integer
+        error_message:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+
+    AuditEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        event_type:
+          type: string
+        resource:
+          type: string
+        resource_id:
+          type: string
+        request_id:
+          type: string
+        success:
+          type: boolean
+        metadata:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+
+    UsageSummaryRow:
+      type: object
+      properties:
+        proof_system:
+          type: string
+        operation:
+          type: string
+        count:
+          type: integer
+        successes:
+          type: integer
+        failures:
+          type: integer
+
+    PortalUsageRow:
+      type: object
+      properties:
+        proof_system:
+          type: string
+        operation:
+          type: string
+        count:
+          type: integer
+        successes:
+          type: integer
+        failures:
+          type: integer
+        estimated_cost_usd:
+          type: number
+          format: double
+
+    PortalOverview:
+      type: object
+      properties:
+        since:
+          type: string
+          format: date-time
+        lookback_days:
+          type: integer
+        kpis:
+          type: object
+          properties:
+            total_operations:
+              type: integer
+            total_failures:
+              type: integer
+            failure_rate:
+              type: number
+              format: double
+            estimated_cost_usd:
+              type: number
+              format: double
+        usage_rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/PortalUsageRow'
+        plan_limits:
+          type: object
+          additionalProperties:
+            type: integer
+        recent_failed_events:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEvent'
+        cost_model:
+          type: object
+          additionalProperties: true
 
     Error:
       type: object

@@ -1,0 +1,4 @@
+company,segment,owner,status,kpi_target,next_step,last_update
+Confidential-Fintech-A,fintech,onboarding-team,active,cut onboarding compliance review time by 40%,weekly pilot checkpoint,2026-02-26
+Confidential-Marketplace-B,marketplace,risk-team,active,reduce document sharing footprint by 60%,integration validation in sandbox,2026-02-26
+Confidential-Healthtech-C,healthtech,compliance-team,active,improve approval SLA by 30%,run production-like pilot batch,2026-02-26

@@ -19,6 +19,10 @@ type RouterConfig struct {
 	JobHandler      *handlers.JobHandler
 	CircuitHandler  *handlers.CircuitHandler
 	TemplateHandler *handlers.TemplateHandler
+	PlanHandler     *handlers.PlanHandler
+	AuditHandler    *handlers.AuditHandler
+	UsageHandler    *handlers.UsageHandler
+	PortalHandler   *handlers.PortalHandler
 	BatchHandler    *handlers.BatchHandler
 	AMLHandler      *handlers.AMLHandler
 	AuthMiddleware  *middleware.Auth
@@ -50,6 +54,9 @@ func NewRouter(cfg *RouterConfig) *chi.Mux {
 	if cfg.Metrics != nil {
 		r.Handle("/metrics", promhttp.Handler())
 	}
+	if cfg.PortalHandler != nil {
+		r.Get("/portal", cfg.PortalHandler.Page)
+	}
 
 	// API routes
 	r.Route("/api/v1", func(r chi.Router) {
@@ -59,6 +66,18 @@ func NewRouter(cfg *RouterConfig) *chi.Mux {
 
 		// System endpoints
 		r.Get("/systems", cfg.SystemHandler.Systems)
+		if cfg.PlanHandler != nil {
+			r.Get("/plans", cfg.PlanHandler.List)
+		}
+		if cfg.AuditHandler != nil {
+			r.Get("/audit/events", cfg.AuditHandler.List)
+		}
+		if cfg.UsageHandler != nil {
+			r.Get("/usage/summary", cfg.UsageHandler.Summary)
+		}
+		if cfg.PortalHandler != nil {
+			r.Get("/portal/overview", cfg.PortalHandler.Overview)
+		}
 
 		// Proof endpoints
 		r.Route("/proofs", func(r chi.Router) {

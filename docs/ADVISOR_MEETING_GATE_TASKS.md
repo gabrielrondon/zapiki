@@ -11,8 +11,11 @@ Objetivo: chegar na proxima reuniao com sinais fortes de aprovacao tecnica e de 
 
 ## Gate B - Produto pagavel
 - [x] B1. SKUs e monetizacao documentados (`docs/PRICING_SKUS.md`).
-- [ ] B2. 3 design partners com dor validada e criterio de sucesso por piloto.
-- [ ] B3. Dashboard cliente (uso/falhas/custos) pronto para pilotos.
+- [x] B2. 3 design partners com dor validada e criterio de sucesso por piloto.
+  - Progresso: programa operacional + tracker em `docs/design-partners/partners.csv` com gate automatizado `make design-partner-report`.
+  - Evidencia: `artifacts/design-partner-report-20260226-170738.md`.
+- [x] B3. Dashboard cliente (uso/falhas/custos) pronto para pilotos.
+  - Progresso: portal basico entregue em `/portal` + endpoint consolidado `/api/v1/portal/overview` (documentado em `openapi.yaml`).
 
 ## Gate C - Operacao em escala
 - [x] C1. CI verde com contract sync backend/frontend.

@@ -53,6 +53,8 @@ func main() {
 	jobRepo := postgres.NewJobRepository(pgStore)
 	circuitRepo := postgres.NewCircuitRepository(pgStore)
 	templateRepo := postgres.NewTemplateRepository(pgStore)
+	auditRepo := postgres.NewAuditRepository(pgStore)
+	usageMetricRepo := postgres.NewUsageMetricRepository(pgStore)
 
 	// Initialize proof system factory
 	factory := prover.NewFactory()
@@ -98,22 +100,34 @@ func main() {
 	log.Println("Initialized queue client")
 
 	// Initialize services
-	proofService := service.NewProofService(factory, proofRepo, jobRepo, queueClient)
+	proofService := service.NewProofServiceWithOptions(factory, proofRepo, jobRepo, queueClient, service.ProofServiceOptions{
+		StoreInputData:      cfg.DataProtection.StoreInputData,
+		MaxInputBytes:       cfg.DataProtection.MaxInputBytes,
+		MaxPublicInputBytes: cfg.DataProtection.MaxPublicInputBytes,
+	})
 	verifyService := service.NewVerifyService(factory)
 	circuitService := service.NewCircuitService(factory, circuitRepo)
 	templateService := service.NewTemplateService(templateRepo, circuitRepo, proofService)
+	auditService := service.NewAuditService(auditRepo)
+	usageMetricService := service.NewUsageMetricService(usageMetricRepo)
 
 	// Initialize metrics
 	metricsCollector := metrics.New()
 	log.Println("Initialized Prometheus metrics")
 
 	// Initialize handlers
-	proofHandler := handlers.NewProofHandler(proofService)
-	verifyHandler := handlers.NewVerifyHandler(verifyService)
+	proofHandler := handlers.NewProofHandler(proofService, auditService)
+	verifyHandler := handlers.NewVerifyHandler(verifyService, auditService)
+	proofHandler.SetUsageService(usageMetricService)
+	verifyHandler.SetUsageService(usageMetricService)
 	systemHandler := handlers.NewSystemHandler(factory, pgStore, redisStore)
 	jobHandler := handlers.NewJobHandler(jobRepo)
 	circuitHandler := handlers.NewCircuitHandler(circuitService)
-	templateHandler := handlers.NewTemplateHandler(templateService)
+	templateHandler := handlers.NewTemplateHandler(templateService, auditService)
+	planHandler := handlers.NewPlanHandler(cfg.RateLimit)
+	auditHandler := handlers.NewAuditHandler(auditRepo)
+	usageHandler := handlers.NewUsageHandler(usageMetricRepo)
+	portalHandler := handlers.NewPortalHandler(usageMetricRepo, auditRepo, cfg.RateLimit)
 	batchHandler := handlers.NewBatchHandler(proofService)
 	amlHandler := handlers.NewAMLHandler(proofService)
 	log.Println("Initialized AML/KYC compliance handlers")
@@ -121,7 +135,7 @@ func main() {
 	// Initialize middleware
 	authMiddleware := middleware.NewAuth(apiKeyRepo)
 	rateLimiter := redis.NewRateLimiter(redisStore)
-	rateLimitMiddleware := middleware.NewRateLimit(rateLimiter, 1*time.Minute)
+	rateLimitMiddleware := middleware.NewRateLimit(rateLimiter, 1*time.Minute, cfg.RateLimit.BurstPercent)
 
 	// Setup router
 	router := routes.NewRouter(&routes.RouterConfig{
@@ -131,6 +145,10 @@ func main() {
 		JobHandler:      jobHandler,
 		CircuitHandler:  circuitHandler,
 		TemplateHandler: templateHandler,
+		PlanHandler:     planHandler,
+		AuditHandler:    auditHandler,
+		UsageHandler:    usageHandler,
+		PortalHandler:   portalHandler,
 		BatchHandler:    batchHandler,
 		AMLHandler:      amlHandler,
 		AuthMiddleware:  authMiddleware,

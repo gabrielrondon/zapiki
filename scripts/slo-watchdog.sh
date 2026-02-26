@@ -34,12 +34,12 @@ if [[ "$metrics_code" != "200" ]]; then
   exit 1
 fi
 
-if ! rg -q '^zapiki_http_requests_total' /tmp/zapiki-metrics.txt; then
+if ! grep -q '^zapiki_http_requests_total' /tmp/zapiki-metrics.txt; then
   echo "ALERT: missing zapiki_http_requests_total metric"
   exit 1
 fi
 
-if ! rg -q '^zapiki_http_request_duration_seconds_bucket' /tmp/zapiki-metrics.txt; then
+if ! grep -q '^zapiki_http_request_duration_seconds_bucket' /tmp/zapiki-metrics.txt; then
   echo "ALERT: missing request duration histogram metric"
   exit 1
 fi

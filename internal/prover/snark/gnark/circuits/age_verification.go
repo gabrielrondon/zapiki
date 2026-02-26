@@ -2,7 +2,6 @@ package circuits
 
 import (
 	"github.com/consensys/gnark/frontend"
-	"github.com/consensys/gnark/std/math/cmp"
 )
 
 // AgeVerificationCircuit proves that age >= minimumAge without revealing actual age

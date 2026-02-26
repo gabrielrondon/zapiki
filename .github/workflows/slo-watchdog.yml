@@ -1,0 +1,32 @@
+name: SLO Watchdog
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      force_alert:
+        description: "Force synthetic alert failure (for firing test)"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  watchdog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Run SLO watchdog
+        env:
+          BASE_URL: https://zapiki-production.up.railway.app
+          FORCE_ALERT: ${{ github.event.inputs.force_alert || 'false' }}
+          SAMPLES: "15"
+          P95_LIMIT_MS: "5000"
+        run: |
+          chmod +x ./scripts/slo-watchdog.sh
+          ./scripts/slo-watchdog.sh

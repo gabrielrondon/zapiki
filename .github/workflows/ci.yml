@@ -11,25 +11,27 @@ jobs:
   contract-sync:
     name: Contract Sync (Cross-repo)
     runs-on: ubuntu-latest
+    env:
+      CROSS_REPO_READ_TOKEN: ${{ secrets.CROSS_REPO_READ_TOKEN }}
 
     steps:
     - name: Checkout backend
       uses: actions/checkout@v4
 
     - name: Checkout frontend
-      if: ${{ secrets.CROSS_REPO_READ_TOKEN != '' }}
+      if: ${{ env.CROSS_REPO_READ_TOKEN != '' }}
       uses: actions/checkout@v4
       with:
         repository: gabrielrondon/zero-wish-proof
-        token: ${{ secrets.CROSS_REPO_READ_TOKEN }}
+        token: ${{ env.CROSS_REPO_READ_TOKEN }}
         path: zapiki-frontend
 
     - name: Skip note when token is not configured
-      if: ${{ secrets.CROSS_REPO_READ_TOKEN == '' }}
+      if: ${{ env.CROSS_REPO_READ_TOKEN == '' }}
       run: echo "CROSS_REPO_READ_TOKEN not set; skipping cross-repo contract drift check."
 
     - name: Verify OpenAPI sync between repos
-      if: ${{ secrets.CROSS_REPO_READ_TOKEN != '' }}
+      if: ${{ env.CROSS_REPO_READ_TOKEN != '' }}
       env:
         ZAPIKI_FRONTEND_DIR: ${{ github.workspace }}/zapiki-frontend
       run: make verify-openapi-sync

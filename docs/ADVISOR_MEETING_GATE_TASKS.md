@@ -19,6 +19,7 @@ Objetivo: chegar na proxima reuniao com sinais fortes de aprovacao tecnica e de 
 - [x] C2. Idempotencia worker + compensacao em falhas de enqueue.
 - [x] C3. SLO com alertas ativos no ambiente de producao.
   - Progresso: watchdog ativo em producao via GitHub Actions (`.github/workflows/slo-watchdog.yml`) com execucao recorrente e canario de firing/clear por `workflow_dispatch`.
+  - Evidencia: run `22452279865` (clear/success) e run `22452279958` (firing/failure) validados em `2026-02-26`.
 - [x] C4. Evidencia de carga (teste com volume alvo por tier).
   - Progresso: `load-evidence` executado com sucesso (60 req, concorrencia 10) em `artifacts/load-evidence-20260226-164042.md`:
     - HTTP 2xx: 60/60

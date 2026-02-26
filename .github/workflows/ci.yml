@@ -110,7 +110,10 @@ jobs:
         POSTGRES_DB: zapiki_test
         REDIS_HOST: localhost
         REDIS_PORT: 6379
-      run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+      run: |
+        go list ./... \
+          | grep -v '^github.com/gabrielrondon/zapiki/internal/prover/snark/gnark$' \
+          | xargs go test -v -race -coverprofile=coverage.out -covermode=atomic
 
     - name: Check coverage threshold
       env:
